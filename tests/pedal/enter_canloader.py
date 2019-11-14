@@ -11,7 +11,7 @@ class CanHandle(object):
     self.p = p
 
   def transact(self, dat):
-    #print "W:",dat.encode("hex")
+    #print("W:",dat.encode("hex"))
     self.p.isotp_send(1, dat, 0, recvaddr=2)
 
     def _handle_timeout(signum, frame):
@@ -25,7 +25,7 @@ class CanHandle(object):
     finally:
       signal.alarm(0)
 
-    #print "R:",ret.encode("hex")
+    #print("R:",ret.encode("hex"))
     return ret
 
   def controlWrite(self, request_type, request, value, index, data, timeout=0):
