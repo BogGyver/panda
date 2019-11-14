@@ -105,30 +105,21 @@ int usb_cb_control_msg(USB_Setup_TypeDef *setup, uint8_t *resp, bool hardwired) 
 #endif
 
 // ***************************** pedal can checksum *****************************
-
-uint8_t pedal_checksum(uint8_t *dat, int len) {
-  uint8_t crc = 0xFF;
-  uint8_t poly = 0xD5; // standard crc8
-  int i, j;
-  for (i = len - 1; i >= 0; i--) {
-    crc ^= dat[i];
-    for (j = 0; j < 8; j++) {
-      if ((crc & 0x80U) != 0U) {
-        crc = (uint8_t)((crc << 1) ^ poly);
-      }
-      else {
-        crc <<= 1;
-      }
-    }
+uint8_t pedal_checksum(uint8_t *dat, int len, int addr) {
+  int i;
+  uint8_t s = 0;
+  s += ((addr)&0xFF) + ((addr>>8)&0xFF);
+  for (i = 0; i < len; i++) {
+    s = (s + dat[i]) & 0xFF;
   }
-  return crc;
+  return s;
 }
 
 // ***************************** can port *****************************
 
 // addresses to be used on CAN
-#define CAN_GAS_INPUT  0x200
-#define CAN_GAS_OUTPUT 0x201U
+#define CAN_GAS_INPUT  0x551
+#define CAN_GAS_OUTPUT 0x552U
 #define CAN_GAS_SIZE 6
 #define COUNTER_CYCLE 0xFU
 
@@ -185,7 +176,7 @@ void CAN1_RX0_IRQHandler(void) {
       uint16_t value_1 = (dat[2] << 8) | dat[3];
       bool enable = ((dat[4] >> 7) & 1U) != 0U;
       uint8_t index = dat[4] & COUNTER_CYCLE;
-      if (pedal_checksum(dat, CAN_GAS_SIZE - 1) == dat[5]) {
+      if (pedal_checksum(dat, CAN_GAS_SIZE - 1, CAN_GAS_INPUT) == dat[5]) {
         if (((current_index + 1U) & COUNTER_CYCLE) == index) {
           #ifdef DEBUG
             puts("setting gas ");
@@ -249,8 +240,8 @@ void TIM3_IRQHandler(void) {
     dat[1] = (pdl0 >> 0) & 0xFFU;
     dat[2] = (pdl1 >> 8) & 0xFFU;
     dat[3] = (pdl1 >> 0) & 0xFFU;
-    dat[4] = ((state & 0xFU) << 4) | pkt_idx;
-    dat[5] = pedal_checksum(dat, CAN_GAS_SIZE - 1);
+    dat[4] = ((pkt_idx & 0xFU) << 4) | state;
+    dat[5] = pedal_checksum(dat, CAN_GAS_SIZE - 1, CAN_GAS_OUTPUT);
     CAN->sTxMailBox[0].TDLR = dat[0] | (dat[1] << 8) | (dat[2] << 16) | (dat[3] << 24);
     CAN->sTxMailBox[0].TDHR = dat[4] | (dat[5] << 8);
     CAN->sTxMailBox[0].TDTR = 6;  // len of packet is 5
@@ -288,8 +279,16 @@ void pedal(void) {
 
   // write the pedal to the DAC
   if (state == NO_FAULT) {
-    dac_set(0, MAX(gas_set_0, pdl0));
-    dac_set(1, MAX(gas_set_1, pdl1));
+    if (pdl0 > 500) {
+      dac_set(0, MAX(gas_set_0, pdl0));
+      dac_set(1, MAX(gas_set_1, pdl1));
+    } else if (gas_set_0 > 0) {
+      dac_set(0, gas_set_0);
+      dac_set(1, gas_set_1);
+    } else {
+      dac_set(0, pdl0);
+      dac_set(1, pdl1);
+    }
   } else {
     dac_set(0, pdl0);
     dac_set(1, pdl1);
