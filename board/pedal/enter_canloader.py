@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import time
 import struct
 import argparse
@@ -10,7 +11,7 @@ class CanHandle(object):
     self.p = p
 
   def transact(self, dat):
-    #print "W:",dat.encode("hex")
+    #print("W:",dat.encode("hex"))
     self.p.isotp_send(1, dat, 0, recvaddr=2)
 
     def _handle_timeout(signum, frame):
@@ -24,7 +25,7 @@ class CanHandle(object):
     finally:
       signal.alarm(0)
 
-    #print "R:",ret.encode("hex")
+    #print("R:",ret.encode("hex"))
     return ret
 
   def controlWrite(self, request_type, request, value, index, data, timeout=0):
@@ -57,7 +58,7 @@ if __name__ == "__main__":
   while 1:
     if len(p.can_recv()) == 0:
       break
-  print("entering bootloader mode")
+  print("entering bootloader mode") 
   if args.recover:
     p.can_send(0x200, b"\xce\xfa\xad\xde\x1e\x0b\xb0\x02", 0)
     p.can_send(0x551, b"\xce\xfa\xad\xde\x1e\x0b\xb0\x02", 0)

@@ -823,6 +823,9 @@ void usb_irqhandler(void) {
         puts("  OUT3 PACKET XFRC\n");
       #endif
       // NAK cleared by process_can (if tx buffers have room)
+      // SID: Why are we doing this instead? using new usb_cb_ep3_out_complete() instead
+      // USBx_OUTEP(3)->DOEPTSIZ = (1U << 19) | 0x40U;
+      // USBx_OUTEP(3)->DOEPCTL |= USB_OTG_DOEPCTL_EPENA | USB_OTG_DOEPCTL_CNAK;
       outep3_processing = false;
       usb_cb_ep3_out_complete();
     } else if ((USBx_OUTEP(3)->DOEPINT & 0x2000) != 0) {

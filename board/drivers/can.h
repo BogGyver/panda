@@ -148,6 +148,7 @@ uint32_t can_speed[] = {5000, 5000, 5000, 333};
 
 #define CANIF_FROM_CAN_NUM(num) (cans[num])
 #define CAN_NUM_FROM_CANIF(CAN) ((CAN)==CAN1 ? 0 : ((CAN) == CAN2 ? 1 : 2))
+#define CAN_NAME_FROM_CANIF(CAN) ((CAN)==CAN1 ? "CAN1" : ((CAN) == CAN2 ? "CAN2" : "CAN3"))
 #define BUS_NUM_FROM_CAN_NUM(num) (bus_lookup[num])
 #define CAN_NUM_FROM_BUS_NUM(num) (can_num_lookup[num])
 
@@ -159,6 +160,11 @@ bool can_set_speed(uint8_t can_number) {
   uint8_t bus_number = BUS_NUM_FROM_CAN_NUM(can_number);
 
   ret &= llcan_set_speed(CAN, can_speed[bus_number], can_loopback, (unsigned int)(can_silent) & (1U << can_number));
+  if (!ret) {
+    puts("CAN init FAILED!!!!!\n");
+    puth(can_number); puts(" ");
+    puth(BUS_NUM_FROM_CAN_NUM(can_number)); puts("\n");
+  }
   return ret;
 }
 
@@ -333,7 +339,7 @@ void process_can(uint8_t can_number) {
         CAN->sTxMailBox[0].TDHR = to_send.RDHR;
         CAN->sTxMailBox[0].TDTR = to_send.RDTR;
         CAN->sTxMailBox[0].TIR = to_send.RIR;
-
+        
         if (can_tx_check_min_slots_free(MAX_CAN_MSGS_PER_BULK_TRANSFER)) {
           usb_outep3_resume_if_paused();
         }
@@ -450,7 +456,7 @@ void can_set_forwarding(int from, int to) {
 
 bool can_init(uint8_t can_number) {
   bool ret = false;
-
+  
   REGISTER_INTERRUPT(CAN1_TX_IRQn, CAN1_TX_IRQ_Handler, CAN_INTERRUPT_RATE, FAULT_INTERRUPT_RATE_CAN_1)
   REGISTER_INTERRUPT(CAN1_RX0_IRQn, CAN1_RX0_IRQ_Handler, CAN_INTERRUPT_RATE, FAULT_INTERRUPT_RATE_CAN_1)
   REGISTER_INTERRUPT(CAN1_SCE_IRQn, CAN1_SCE_IRQ_Handler, CAN_INTERRUPT_RATE, FAULT_INTERRUPT_RATE_CAN_1)

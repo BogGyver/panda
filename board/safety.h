@@ -221,11 +221,38 @@ const safety_hook_config safety_hook_registry[] = {
   {SAFETY_FORD, &ford_hooks},
 #endif
 };
+int current_safety = -1;
 
 int set_safety_hooks(uint16_t mode, int16_t param) {
   safety_mode_cnt = 0U;  // reset safety mode timer
   int set_status = -1;  // not set
   int hook_config_count = sizeof(safety_hook_registry) / sizeof(safety_hook_config);
+  for (int i = 0; i < hook_config_count; i++) {
+    if (safety_hook_registry[i].id == mode) {
+      current_hooks = safety_hook_registry[i].hooks;
+      current_safety_mode = safety_hook_registry[i].id;
+      set_status = 0;  // set
+      break;
+    }
+  }
+  if ((set_status == 0) && (current_hooks->init != NULL)) {
+    current_hooks->init(param);
+  }
+  //return set_status;
+  //BB prevent resetting if already in the correct mode
+  UNUSED(mode);
+  UNUSED(param);
+  return 1;
+}
+
+int set_safety_hooks2(uint16_t mode, int16_t param) {
+  safety_mode_cnt = 0U;  // reset safety mode timer
+  int set_status = -1;  // not set
+  int hook_config_count = sizeof(safety_hook_registry) / sizeof(safety_hook_config);
+  //BB prevent resetting if already in the correct mode
+  if ((mode > 0) && (current_safety == mode)) {
+    return 1;
+  }
   for (int i = 0; i < hook_config_count; i++) {
     if (safety_hook_registry[i].id == mode) {
       current_hooks = safety_hook_registry[i].hooks;

@@ -106,7 +106,7 @@ bool brake_pressed_prev = false;
 // See ISO 15622:2018 for more information.
 #define UNSAFE_RAISE_LONGITUDINAL_LIMITS_TO_ISO_MAX 8
 
-int unsafe_mode = 0;
+int unsafe_mode = 1;
 
 // time since safety mode has been changed
 uint32_t safety_mode_cnt = 0U;
