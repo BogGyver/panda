@@ -3,7 +3,11 @@
 #include "libc.h"
 
 #include "main_declarations.h"
+#include "critical.h"
+#include "faults.h"
 
+#include "drivers/registers.h"
+#include "drivers/interrupts.h"
 #include "drivers/llcan.h"
 #include "drivers/llgpio.h"
 #include "drivers/adc.h"
@@ -15,6 +19,7 @@
 #include "drivers/timer.h"
 
 #include "gpio.h"
+#include "crc.h"
 
 #define CAN CAN1
 
@@ -84,9 +89,6 @@ int usb_cb_control_msg(USB_Setup_TypeDef *setup, uint8_t *resp, bool hardwired) 
       if (!ur) {
         break;
       }
-      if (ur == &esp_ring) {
-        uart_dma_drain();
-      }
       // read
       while ((resp_len < MIN(setup->b.wLength.w, MAX_RESP_LEN)) &&
                          getc(ur, (char*)&resp[resp_len])) {
@@ -105,7 +107,10 @@ int usb_cb_control_msg(USB_Setup_TypeDef *setup, uint8_t *resp, bool hardwired) 
 #endif
 
 // ***************************** pedal can checksum *****************************
-uint8_t pedal_checksum(uint8_t *dat, int len, int addr) {
+
+
+// ***************************** tesla can checksum *****************************
+uint8_t tesla_can_cksum(uint8_t *dat, int len, int addr) {
   int i;
   uint8_t s = 0;
   s += ((addr)&0xFF) + ((addr>>8)&0xFF);
@@ -118,13 +123,12 @@ uint8_t pedal_checksum(uint8_t *dat, int len, int addr) {
 // ***************************** can port *****************************
 
 // addresses to be used on CAN
-#define CAN_GAS_INPUT  0x551
+#define CAN_GAS_INPUT  0x551U
 #define CAN_GAS_OUTPUT 0x552U
 #define CAN_GAS_SIZE 6
 #define COUNTER_CYCLE 0xFU
 
-// cppcheck-suppress unusedFunction ; used in headers not included in cppcheck
-void CAN1_TX_IRQHandler(void) {
+void CAN1_TX_IRQ_Handler(void) {
   // clear interrupt
   CAN->TSR |= CAN_TSR_RQCP0;
 }
@@ -146,8 +150,9 @@ uint32_t current_index = 0;
 #define FAULT_INVALID 6U
 uint8_t state = FAULT_STARTUP;
 
-// cppcheck-suppress unusedFunction ; used in headers not included in cppcheck
-void CAN1_RX0_IRQHandler(void) {
+const uint8_t crc_poly = 0xD5;  // standard crc8
+
+void CAN1_RX0_IRQ_Handler(void) {
   while ((CAN->RF0R & CAN_RF0R_FMP0) != 0) {
     #ifdef DEBUG
       puts("CAN RX\n");
@@ -165,6 +170,7 @@ void CAN1_RX0_IRQHandler(void) {
         } else {
           puts("Failed entering Softloader or Bootloader\n");
         }
+        return;
       }
 
       // normal packet
@@ -176,7 +182,7 @@ void CAN1_RX0_IRQHandler(void) {
       uint16_t value_1 = (dat[2] << 8) | dat[3];
       bool enable = ((dat[4] >> 7) & 1U) != 0U;
       uint8_t index = dat[4] & COUNTER_CYCLE;
-      if (pedal_checksum(dat, CAN_GAS_SIZE - 1, CAN_GAS_INPUT) == dat[5]) {
+      if (tesla_can_cksum(dat, CAN_GAS_SIZE - 1,CAN_GAS_INPUT) == dat[5]) {
         if (((current_index + 1U) & COUNTER_CYCLE) == index) {
           #ifdef DEBUG
             puts("setting gas ");
@@ -210,8 +216,7 @@ void CAN1_RX0_IRQHandler(void) {
   }
 }
 
-// cppcheck-suppress unusedFunction ; used in headers not included in cppcheck
-void CAN1_SCE_IRQHandler(void) {
+void CAN1_SCE_IRQ_Handler(void) {
   state = FAULT_SCE;
   llcan_clear_send(CAN);
 }
@@ -222,8 +227,7 @@ unsigned int pkt_idx = 0;
 
 int led_value = 0;
 
-// cppcheck-suppress unusedFunction ; used in headers not included in cppcheck
-void TIM3_IRQHandler(void) {
+void TIM3_IRQ_Handler(void) {
   #ifdef DEBUG
     puth(TIM3->CNT);
     puts(" ");
@@ -240,8 +244,8 @@ void TIM3_IRQHandler(void) {
     dat[1] = (pdl0 >> 0) & 0xFFU;
     dat[2] = (pdl1 >> 8) & 0xFFU;
     dat[3] = (pdl1 >> 0) & 0xFFU;
-    dat[4] = ((pkt_idx & 0xFU) << 4) | state;
-    dat[5] = pedal_checksum(dat, CAN_GAS_SIZE - 1, CAN_GAS_OUTPUT);
+    dat[4] = ((state & 0xFU) << 4) | pkt_idx;
+    dat[5] = tesla_can_cksum(dat, CAN_GAS_SIZE - 1,CAN_GAS_OUTPUT);
     CAN->sTxMailBox[0].TDLR = dat[0] | (dat[1] << 8) | (dat[2] << 16) | (dat[3] << 24);
     CAN->sTxMailBox[0].TDHR = dat[4] | (dat[5] << 8);
     CAN->sTxMailBox[0].TDTR = 6;  // len of packet is 5
@@ -298,6 +302,16 @@ void pedal(void) {
 }
 
 int main(void) {
+  // Init interrupt table
+  init_interrupts(true);
+
+  REGISTER_INTERRUPT(CAN1_TX_IRQn, CAN1_TX_IRQ_Handler, CAN_INTERRUPT_RATE, FAULT_INTERRUPT_RATE_CAN_1)
+  REGISTER_INTERRUPT(CAN1_RX0_IRQn, CAN1_RX0_IRQ_Handler, CAN_INTERRUPT_RATE, FAULT_INTERRUPT_RATE_CAN_1)
+  REGISTER_INTERRUPT(CAN1_SCE_IRQn, CAN1_SCE_IRQ_Handler, CAN_INTERRUPT_RATE, FAULT_INTERRUPT_RATE_CAN_1)
+
+  // Should run at around 732Hz (see init below)
+  REGISTER_INTERRUPT(TIM3_IRQn, TIM3_IRQ_Handler, 1000U, FAULT_INTERRUPT_RATE_TIM3)
+
   disable_interrupts();
 
   // init devices
