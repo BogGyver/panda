@@ -20,15 +20,15 @@ bool fwd_check_valid(CAN_FIFOMailBox_TypeDef *to_push,
 }
 
 int get_fwd_addr_check_index(CAN_FIFOMailBox_TypeDef *to_fwd, 
-    CanMsgFwd addr_list[], const int len) {
+    CanMsgFwd addr_list[], const int len, bool is_data) {
   int bus = GET_BUS(to_fwd);
   int addr = GET_ADDR(to_fwd);
   int length = GET_LEN(to_fwd);
 
   int index = -1;
   for (int i = 0; i < len; i++) {
-    if ((addr == addr_list[i].msg.addr) && (bus == addr_list[i].msg.bus) &&
-        (length == addr_list[i].msg.len)) {
+    if ((addr == addr_list[i].msg.addr)  && (length == addr_list[i].msg.len) && 
+     (((bus == addr_list[i].msg.bus) && (!is_data)) || ((bus == addr_list[i].fwd_to_bus) && (is_data)))) {
       index = i;
       break;
     }
@@ -72,7 +72,7 @@ bool fwd_data_message(CAN_FIFOMailBox_TypeDef *to_push,
                        const int fwd_msg_def_len,
                        bool violation
                        ) {
-    int index = get_fwd_addr_check_index(to_push, fwd_msg_def, fwd_msg_def_len);
+    int index = get_fwd_addr_check_index(to_push, fwd_msg_def, fwd_msg_def_len,true);
     if (index == -1) {
         return false;
     }
@@ -100,7 +100,7 @@ int fwd_modded_message(CAN_FIFOMailBox_TypeDef *to_fwd,
                        CanMsgFwd *fwd_msg_def,
                        const int fwd_msg_def_len,
                        bool (*compute_fwd_checksum)(CAN_FIFOMailBox_TypeDef *to_fwd)) {
-    int index = get_fwd_addr_check_index(to_fwd, fwd_msg_def, fwd_msg_def_len);
+    int index = get_fwd_addr_check_index(to_fwd, fwd_msg_def, fwd_msg_def_len,false);
     if (index == -1) {
         return -2;
     }
