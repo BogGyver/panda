@@ -1,3 +1,5 @@
+#include "safety_forwards.h"
+
 const struct lookup_t TESLA_LOOKUP_ANGLE_RATE_UP = {
     {2., 7., 17.},
     {5., .8, .25}};
@@ -50,6 +52,13 @@ AddrCheckStruct tesla_rx_checks[] = {
 };
 #define TESLA_RX_CHECK_LEN (sizeof(tesla_rx_checks) / sizeof(tesla_rx_checks[0]))
 
+CanMsgFwd tesla_fwd_modded[] = {
+  {.msg = {0x488,2,4},.fwd_to_bus=0,.expected_timestep = 40000U,.counter_mask_H=0x00000000,.counter_mask_L=0x000F0000}, // DAS_steeringControl - Lat Control - 20Hz
+  {.msg = {0x2B9,2,8},.fwd_to_bus=0,.expected_timestep = 25000U,.counter_mask_H=0x00E00000,.counter_mask_L=0x00000000}, // DAS_control - Long Control - 40Hz
+  {.msg = {0x209,2,8},.fwd_to_bus=0,.expected_timestep = 25000U,.counter_mask_H=0x00E00000,.counter_mask_L=0x00000000}, // DAS_longControl - Long Control - 40Hz
+};
+#define TESLA_FWD_CHECK_LEN (sizeof(tesla_fwd_modded) / sizeof(tesla_fwd_modded[0]))
+
 bool autopilot_enabled = false;
 
 static uint8_t tesla_compute_checksum(CAN_FIFOMailBox_TypeDef *to_push) {
@@ -60,6 +69,24 @@ static uint8_t tesla_compute_checksum(CAN_FIFOMailBox_TypeDef *to_push) {
     checksum += (uint8_t)GET_BYTE(to_push, i);
   }
   return checksum;
+}
+
+static bool tesla_compute_fwd_checksum(CAN_FIFOMailBox_TypeDef *to_fwd) {
+    uint8_t checksum = tesla_compute_checksum(to_fwd); 
+    bool valid = false;
+    int addr = GET_ADDR(to_fwd);
+
+    if (addr == 0x488) {
+      to_fwd->RDLR = (to_fwd->RDLR | (checksum << 24));
+      valid = true;
+    }
+
+    if ((addr == 0x209) || (addr == 0x2B9)) {
+      to_fwd->RDHR = (to_fwd->RDHR | (checksum << 24));
+      valid = true;
+    }
+
+    return valid;
 }
 
 static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
@@ -149,6 +176,8 @@ static int tesla_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
   int addr = GET_ADDR(to_send);
   bool violation = false;
 
+
+
   if(!msg_allowed(to_send, TESLA_TX_MSGS, sizeof(TESLA_TX_MSGS) / sizeof(TESLA_TX_MSGS[0]))) {
     tx = 0;
   }
@@ -229,12 +258,24 @@ static int tesla_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
     tx = 0;
   }
 
+  if (fwd_data_message(to_send,tesla_fwd_modded,TESLA_FWD_CHECK_LEN,violation)) {
+    //do not send if the message is in the forwards
+    tx = 0;
+  }
+
   return tx;
 }
 
 static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
   int bus_fwd = -1;
   int addr = GET_ADDR(to_fwd);
+
+  //we check to see first if these are modded forwards
+  int fwd_modded = fwd_modded_message(to_fwd,tesla_fwd_modded,TESLA_FWD_CHECK_LEN,tesla_compute_fwd_checksum);
+  if (fwd_modded != -2) {
+    //it's a forward modded message, so just forward now
+    return fwd_modded;
+  }
 
   if(bus_num == 0) {
     // Chassis to autopilot
