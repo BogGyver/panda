@@ -90,6 +90,15 @@ static bool tesla_compute_fwd_checksum(CAN_FIFOMailBox_TypeDef *to_fwd) {
 }
 
 static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
+
+  //update gmlan for giraffe control
+  if ((hw_type == HW_TYPE_WHITE_PANDA) || (hw_type == HW_TYPE_WHITE_PANDA))
+  {
+    //we're still in tesla safety mode, reset the timeout counter and make sure our output is enabled
+    set_gmlan_digital_output(GMLAN_HIGH);
+    reset_gmlan_switch_timeout(); 
+  };
+
   bool valid = addr_safety_check(to_push, tesla_rx_checks, TESLA_RX_CHECK_LEN,
                                  NULL, NULL, NULL);
 
@@ -326,6 +335,11 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
 
 static void tesla_init(int16_t param) {
   controls_allowed = 0;
+  //init gmlan for giraffe control
+  if ((hw_type == HW_TYPE_WHITE_PANDA) || (hw_type == HW_TYPE_WHITE_PANDA))
+  {
+    gmlan_switch_init(1);
+  };
   relay_malfunction_reset();
   has_ap_hardware = GET_FLAG(param, TESLA_HAS_AP_HARDWARE);
   has_acc = GET_FLAG(param, TESLA_HAS_ACC);
