@@ -99,7 +99,7 @@ static bool tesla_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
     }
 
     if (addr == 0x209) {
-      valid = !autopilot_enabled
+      valid = !autopilot_enabled;
     }
 
     if (addr == 0x2B9) {
