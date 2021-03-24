@@ -36,20 +36,13 @@ int get_fwd_addr_check_index(CAN_FIFOMailBox_TypeDef *to_fwd,
   return index;
 }
 
-void update_received_addr_timestamp(CanMsgFwd addr_list[], int index) {
-  if (index != -1) {
-    uint32_t ts = TIM2->CNT;
-    addr_list[index].last_received_timestamp = ts;
-  }
-}
-
 void update_received_time(CanMsgFwd addr_list[], int index) {
     //this should never happen but let's check anyway
     if (index == -1) {
         return;
     }
     uint32_t ts = TIM2->CNT;
-    addr_list[index].last_fwd_timestamp = ts;
+    addr_list[index].last_received_timestamp = ts;
 }
 
 bool check_fwd_time_validity(CanMsgFwd addr_list[], int index) {
