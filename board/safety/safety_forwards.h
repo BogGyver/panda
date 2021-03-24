@@ -16,7 +16,7 @@ typedef struct {
 bool fwd_check_valid(CAN_FIFOMailBox_TypeDef *to_push, 
                 uint32_t mask_H, uint32_t mask_L) {
     //we check for now only if the counter set in Comma2 is > 0
-    return ((to_push->RDHR & mask_H) + (to_push->RDLR & mask_L)) > 0;
+    return (uint32_t)((to_push->RDHR & mask_H) + (to_push->RDLR & mask_L)) > 0;
 }
 
 int get_fwd_addr_check_index(CAN_FIFOMailBox_TypeDef *to_fwd, 
@@ -73,9 +73,9 @@ bool fwd_data_message(CAN_FIFOMailBox_TypeDef *to_push,
     //update timestamp
     update_received_time(fwd_msg_def,index);
     if ((!violation) && fwd_check_valid(to_push,fwd_msg_def[index].counter_mask_H,fwd_msg_def[index].counter_mask_L)) {
-        fwd_msg_def[index].dataH = to_push->RDHR;
-        fwd_msg_def[index].dataL = to_push->RDLR;
-        fwd_msg_def[index].is_valid = true;
+        fwd_msg_def[index].dataH = to_push->RDHR & (fwd_msg_def[index].counter_mask_H ^ 0xFFFFFFFF);
+        fwd_msg_def[index].dataL = to_push->RDLR & (fwd_msg_def[index].counter_mask_L ^ 0xFFFFFFFF);
+        fwd_msg_def[index].is_valid = true; 
     } else {
         fwd_msg_def[index].dataH = 0;
         fwd_msg_def[index].dataL = 0;
@@ -115,7 +115,7 @@ int fwd_modded_message(CAN_FIFOMailBox_TypeDef *to_fwd,
 
     //transfer counter
     to_fwd->RDHR = fwd_msg_def[index].dataH | (dataH & fwd_msg_def[index].counter_mask_H);
-    to_fwd->RDLR = fwd_msg_def[index].dataL | (dataL & fwd_msg_def[index].counter_mask_H);
+    to_fwd->RDLR = fwd_msg_def[index].dataL | (dataL & fwd_msg_def[index].counter_mask_L);
 
     //compute checksum
     if (compute_fwd_checksum != NULL) {
