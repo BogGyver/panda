@@ -95,18 +95,15 @@ static bool tesla_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
     int addr = GET_ADDR(to_fwd);
 
     if (addr == 0x488) {
-      valid = true;
+      valid = !autopilot_enabled;
     }
 
     if (addr == 0x209) {
-      //only send if acc status is in ON (4) or HOLD (3)
-      if ((last_acc_status == 3) || (last_acc_status == 4)) {
-        valid = true;
-      }
+      valid = !autopilot_enabled
     }
 
     if (addr == 0x2B9) {
-        valid = true;      
+      valid = !autopilot_enabled;      
     }
 
     return valid;
