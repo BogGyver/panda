@@ -25,6 +25,7 @@ bool has_acc = false;
 bool has_op_long_control = false;
 bool has_hud_integration = false;
 bool has_body_controls = false;
+int last_acc_status = -1;
 
 const CanMsg TESLA_TX_MSGS[] = {
   {0x488, 0, 4},  // DAS_steeringControl - Lat Control
@@ -84,6 +85,28 @@ static bool tesla_compute_fwd_checksum(CAN_FIFOMailBox_TypeDef *to_fwd) {
     if ((addr == 0x209) || (addr == 0x2B9)) {
       to_fwd->RDHR = (to_fwd->RDHR | (checksum << 24));
       valid = true;
+    }
+
+    return valid;
+}
+
+static bool tesla_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
+    bool valid = false;
+    int addr = GET_ADDR(to_fwd);
+
+    if (addr == 0x488) {
+      valid = true;
+    }
+
+    if (addr == 0x209) {
+      //only send if acc status is in ON (4) or HOLD (3)
+      if ((last_acc_status == 3) || (last_acc_status == 4)) {
+        valid = true;
+      }
+    }
+
+    if (addr == 0x2B9) {
+        valid = true;      
     }
 
     return valid;
@@ -165,10 +188,14 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
         autopilot_enabled = (autopilot_status == 3) ||  // ACTIVE_1
                             (autopilot_status == 4) ||  // ACTIVE_2
                             (autopilot_status == 5);    // ACTIVE_NAVIGATE_ON_AUTOPILOT
-
         if (autopilot_enabled) {
           controls_allowed = 0;
         }
+      }
+
+      if (addr == 0x2B9) {
+        //AP1 DAS_control
+        last_acc_status = ((GET_BYTE(to_push, 1)>> 4) & 0xF);
       }
     }
 
@@ -184,8 +211,6 @@ static int tesla_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
   int tx = 1;
   int addr = GET_ADDR(to_send);
   bool violation = false;
-
-
 
   if(!msg_allowed(to_send, TESLA_TX_MSGS, sizeof(TESLA_TX_MSGS) / sizeof(TESLA_TX_MSGS[0]))) {
     tx = 0;
@@ -280,7 +305,8 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
   int addr = GET_ADDR(to_fwd);
 
   //we check to see first if these are modded forwards
-  int fwd_modded = fwd_modded_message(to_fwd,tesla_fwd_modded,TESLA_FWD_CHECK_LEN,tesla_compute_fwd_checksum);
+  int fwd_modded = fwd_modded_message(to_fwd,tesla_fwd_modded,TESLA_FWD_CHECK_LEN,
+            tesla_compute_fwd_should_mod,tesla_compute_fwd_checksum);
   if (fwd_modded != -2) {
     //it's a forward modded message, so just forward now
     return fwd_modded;

@@ -92,6 +92,7 @@ bool fwd_data_message(CAN_FIFOMailBox_TypeDef *to_push,
 int fwd_modded_message(CAN_FIFOMailBox_TypeDef *to_fwd,
                        CanMsgFwd *fwd_msg_def,
                        const int fwd_msg_def_len,
+                       bool (*compute_fwd_should_mod)(CAN_FIFOMailBox_TypeDef *to_fwd),
                        bool (*compute_fwd_checksum)(CAN_FIFOMailBox_TypeDef *to_fwd)) {
     int index = get_fwd_addr_check_index(to_fwd, fwd_msg_def, fwd_msg_def_len,false);
     if (index == -1) {
@@ -106,6 +107,14 @@ int fwd_modded_message(CAN_FIFOMailBox_TypeDef *to_fwd,
     //is the data valid to process?
     if (!fwd_msg_def[index].is_valid) {
         return fwd_msg_def[index].fwd_to_bus;
+    }
+
+    //check if we should mod at this time
+    if (compute_fwd_should_mod != NULL) {
+        if (!compute_fwd_should_mod(to_fwd)) {
+            //we should not modify it
+            return fwd_msg_def[index].fwd_to_bus;
+        }
     }
 
     //start preparing the message mod
