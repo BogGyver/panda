@@ -112,7 +112,7 @@ static bool tesla_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
 static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
 
   //update gmlan for giraffe control
-  if ((hw_type == HW_TYPE_WHITE_PANDA) || (hw_type == HW_TYPE_WHITE_PANDA))
+  if (board_has_gmlan())
   {
     //we're still in tesla safety mode, reset the timeout counter and make sure our output is enabled
     set_gmlan_digital_output(GMLAN_HIGH);
@@ -359,7 +359,7 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
 static void tesla_init(int16_t param) {
   controls_allowed = 0;
   //init gmlan for giraffe control
-  if ((hw_type == HW_TYPE_WHITE_PANDA) || (hw_type == HW_TYPE_WHITE_PANDA))
+  if (board_has_gmlan())
   {
     gmlan_switch_init(1);
   };
