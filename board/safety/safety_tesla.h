@@ -27,38 +27,67 @@ bool has_hud_integration = false;
 bool has_body_controls = false;
 int last_acc_status = -1;
 
-const CanMsg TESLA_TX_MSGS[] = {
-  {0x488, 0, 4},  // DAS_steeringControl - Lat Control
-  {0x2B9, 0, 8},  // DAS_control - Long Control
-  {0x209, 0, 8},  // DAS_longControl - Long Control
-  {0x45,  0, 8},  // STW_ACTN_RQ - ACC Control
-  {0x45,  2, 8},  // STW_ACTN_RQ - ACC Control
-  {0x399, 0, 8},  // DAS_status - HUD
-  {0x389, 0, 8},  // DAS_status2 - HUD
-  {0x239, 0, 8},  // DAS_lanes - HUD
-  {0x309, 0, 8},  // DAS_object - HUD
-  {0x3A9, 0, 8},  // DAS_telemetry - HUD
-  {0x3E9, 0, 8},  // DAS_bodyControls - Car Integration for turn signal on ALCA
-};
+//TESLA WITH AUTOPILOT DEFS
+const CanMsg TESLA_AP_TX_MSGS[] = {
+    {0x488, 0, 4},  // DAS_steeringControl - Lat Control
+    {0x2B9, 0, 8},  // DAS_control - Long Control
+    {0x209, 0, 8},  // DAS_longControl - Long Control
+    {0x45,  0, 8},  // STW_ACTN_RQ - ACC Control
+    {0x45,  2, 8},  // STW_ACTN_RQ - ACC Control
+    {0x399, 0, 8},  // DAS_status - HUD
+    {0x389, 0, 8},  // DAS_status2 - HUD
+    {0x239, 0, 8},  // DAS_lanes - HUD
+    {0x309, 0, 8},  // DAS_object - HUD
+    {0x3A9, 0, 8},  // DAS_telemetry - HUD
+    {0x3E9, 0, 8},  // DAS_bodyControls - Car Integration for turn signal on ALCA
+  };
 
-AddrCheckStruct tesla_rx_checks[] = {
-  {.msg = {{0x370, 0, 8, .expected_timestep = 40000U}}},   // EPAS_sysStatus (25Hz)
-  {.msg = {{0x108, 0, 8, .expected_timestep = 10000U}}},   // DI_torque1 (100Hz)
-  {.msg = {{0x118, 0, 6, .expected_timestep = 10000U}}},   // DI_torque2 (100Hz)
-  {.msg = {{0x155, 0, 8, .expected_timestep = 20000U}}},   // ESP_B (50Hz)
-  {.msg = {{0x20a, 0, 8, .expected_timestep = 20000U}}},   // BrakeMessage (50Hz)
-  {.msg = {{0x368, 0, 8, .expected_timestep = 100000U}}},  // DI_state (10Hz)
-  {.msg = {{0x318, 0, 8, .expected_timestep = 100000U}}},  // GTW_carState (10Hz)
-  // {.msg = {{0x399, 2, 8, .expected_timestep = 500000U}}},  // AutopilotStatus (2Hz)
-};
-#define TESLA_RX_CHECK_LEN (sizeof(tesla_rx_checks) / sizeof(tesla_rx_checks[0]))
+AddrCheckStruct  TESLA_AP_RX_CHECKS[] = {
+    {.msg = {{0x370, 0, 8, .expected_timestep = 40000U}}},   // EPAS_sysStatus (25Hz)
+    {.msg = {{0x108, 0, 8, .expected_timestep = 10000U}}},   // DI_torque1 (100Hz)
+    {.msg = {{0x118, 0, 6, .expected_timestep = 10000U}}},   // DI_torque2 (100Hz)
+    {.msg = {{0x155, 0, 8, .expected_timestep = 20000U}}},   // ESP_B (50Hz)
+    {.msg = {{0x20a, 0, 8, .expected_timestep = 20000U}}},   // BrakeMessage (50Hz)
+    {.msg = {{0x368, 0, 8, .expected_timestep = 100000U}}},  // DI_state (10Hz)
+    {.msg = {{0x318, 0, 8, .expected_timestep = 100000U}}},  // GTW_carState (10Hz)
+    {.msg = {{0x399, 2, 8, .expected_timestep = 500000U}}},  // AutopilotStatus (2Hz)
+  };
 
-CanMsgFwd tesla_fwd_modded[] = {
-  {.msg = {0x488,2,4},.fwd_to_bus=0,.expected_timestep = 50000U,.counter_mask_H=0x00000000,.counter_mask_L=0x000F0000}, // DAS_steeringControl - Lat Control - 20Hz
-  {.msg = {0x2B9,2,8},.fwd_to_bus=0,.expected_timestep = 25000U,.counter_mask_H=0x00E00000,.counter_mask_L=0x00000000}, // DAS_control - Long Control - 40Hz
-  {.msg = {0x209,2,8},.fwd_to_bus=0,.expected_timestep = 25000U,.counter_mask_H=0x00E00000,.counter_mask_L=0x00000000}, // DAS_longControl - Long Control - 40Hz
-};
-#define TESLA_FWD_CHECK_LEN (sizeof(tesla_fwd_modded) / sizeof(tesla_fwd_modded[0]))
+CanMsgFwd  TESLA_AP_FWD_MODDED[] = {
+    {.msg = {0x488,2,4},.fwd_to_bus=0,.expected_timestep = 50000U,.counter_mask_H=0x00000000,.counter_mask_L=0x000F0000}, // DAS_steeringControl - Lat Control - 20Hz
+    {.msg = {0x2B9,2,8},.fwd_to_bus=0,.expected_timestep = 25000U,.counter_mask_H=0x00E00000,.counter_mask_L=0x00000000}, // DAS_control - Long Control - 40Hz
+    {.msg = {0x209,2,8},.fwd_to_bus=0,.expected_timestep = 25000U,.counter_mask_H=0x00E00000,.counter_mask_L=0x00000000}, // DAS_longControl - Long Control - 40Hz
+  };
+
+//TESLA WITHOUT AUTOPILOT DEFS
+const CanMsg TESLA_PREAP_TX_MSGS[] = {
+    {0x488, 2, 4},  // DAS_steeringControl - Lat Control
+    {0x2B9, 0, 8},  // DAS_control - Long Control
+    {0x209, 0, 8},  // DAS_longControl - Long Control
+    {0x45,  0, 8},  // STW_ACTN_RQ - ACC Control
+    {0x399, 0, 8},  // DAS_status - HUD
+    {0x389, 0, 8},  // DAS_status2 - HUD
+    {0x239, 0, 8},  // DAS_lanes - HUD
+    {0x309, 0, 8},  // DAS_object - HUD
+    {0x3A9, 0, 8},  // DAS_telemetry - HUD
+    {0x3E9, 0, 8},  // DAS_bodyControls - Car Integration for turn signal on ALCA
+  };
+
+AddrCheckStruct  TESLA_PREAP_RX_CHECKS[] = {
+    {.msg = {{0x370, 2, 8, .expected_timestep = 40000U}}},   // EPAS_sysStatus (25Hz)
+    {.msg = {{0x108, 0, 8, .expected_timestep = 10000U}}},   // DI_torque1 (100Hz)
+    {.msg = {{0x118, 0, 6, .expected_timestep = 10000U}}},   // DI_torque2 (100Hz)
+    {.msg = {{0x155, 0, 8, .expected_timestep = 20000U}}},   // ESP_B (50Hz)
+    {.msg = {{0x20a, 0, 8, .expected_timestep = 20000U}}},   // BrakeMessage (50Hz)
+    {.msg = {{0x368, 0, 8, .expected_timestep = 100000U}}},  // DI_state (10Hz)
+    {.msg = {{0x318, 0, 8, .expected_timestep = 100000U}}},  // GTW_carState (10Hz)
+  };
+
+CanMsgFwd TESLA_PREAP_FWD_MODDED[] = {
+    {.msg = {0x488,2,4},.fwd_to_bus=0,.expected_timestep = 50000U,.counter_mask_H=0x00000000,.counter_mask_L=0x000F0000}, // DAS_steeringControl - Lat Control - 20Hz
+    {.msg = {0x2B9,2,8},.fwd_to_bus=0,.expected_timestep = 25000U,.counter_mask_H=0x00E00000,.counter_mask_L=0x00000000}, // DAS_control - Long Control - 40Hz
+    {.msg = {0x209,2,8},.fwd_to_bus=0,.expected_timestep = 25000U,.counter_mask_H=0x00E00000,.counter_mask_L=0x00000000}, // DAS_longControl - Long Control - 40Hz
+  };
 
 bool autopilot_enabled = false;
 
@@ -119,8 +148,14 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
     reset_gmlan_switch_timeout(); 
   };
 
-  bool valid = addr_safety_check(to_push, tesla_rx_checks, TESLA_RX_CHECK_LEN,
+  bool valid = false;
+  if (has_ap_hardware) {
+    addr_safety_check(to_push, TESLA_AP_RX_CHECKS, sizeof(TESLA_AP_RX_CHECKS)/sizeof(TESLA_AP_RX_CHECKS[0]),
                                  NULL, NULL, NULL);
+  } else {
+    addr_safety_check(to_push, TESLA_PREAP_RX_CHECKS, sizeof(TESLA_PREAP_RX_CHECKS)/sizeof(TESLA_PREAP_RX_CHECKS[0]),
+                                 NULL, NULL, NULL);
+  }
 
   if(valid) {
     int bus = GET_BUS(to_push);
@@ -209,8 +244,14 @@ static int tesla_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
   int addr = GET_ADDR(to_send);
   bool violation = false;
 
-  if(!msg_allowed(to_send, TESLA_TX_MSGS, sizeof(TESLA_TX_MSGS) / sizeof(TESLA_TX_MSGS[0]))) {
-    tx = 0;
+  if (has_ap_hardware) {
+    if(!msg_allowed(to_send, TESLA_AP_TX_MSGS, sizeof(TESLA_AP_TX_MSGS) / sizeof(TESLA_AP_TX_MSGS[0]))) {
+      tx = 0;
+    }
+  } else {
+    if(!msg_allowed(to_send, TESLA_PREAP_TX_MSGS, sizeof(TESLA_PREAP_TX_MSGS) / sizeof(TESLA_PREAP_TX_MSGS[0]))) {
+      tx = 0;
+    }
   }
 
   if(relay_malfunction) {
@@ -289,9 +330,16 @@ static int tesla_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
     tx = 0;
   }
 
-  if (fwd_data_message(to_send,tesla_fwd_modded,TESLA_FWD_CHECK_LEN,violation)) {
-    //do not send if the message is in the forwards
-    tx = 0;
+  if (has_ap_hardware) {
+    if (fwd_data_message(to_send,TESLA_AP_FWD_MODDED,sizeof(TESLA_AP_FWD_MODDED)/sizeof(TESLA_AP_FWD_MODDED[0]),violation)) {
+      //do not send if the message is in the forwards
+      tx = 0;
+    }
+  } else {
+    if (fwd_data_message(to_send,TESLA_PREAP_FWD_MODDED,sizeof(TESLA_PREAP_FWD_MODDED)/sizeof(TESLA_PREAP_FWD_MODDED[0]),violation)) {
+      //do not send if the message is in the forwards
+      tx = 0;
+    }
   }
 
   return tx;
@@ -300,10 +348,16 @@ static int tesla_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
 static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
   int bus_fwd = -1;
   int addr = GET_ADDR(to_fwd);
+  int fwd_modded = -2;
 
+  if (has_ap_hardware) {
   //we check to see first if these are modded forwards
-  int fwd_modded = fwd_modded_message(to_fwd,tesla_fwd_modded,TESLA_FWD_CHECK_LEN,
+    fwd_modded = fwd_modded_message(to_fwd,TESLA_AP_FWD_MODDED,sizeof(TESLA_AP_FWD_MODDED)/sizeof(TESLA_AP_FWD_MODDED[0]),
             tesla_compute_fwd_should_mod,tesla_compute_fwd_checksum);
+  } else {
+    fwd_modded = fwd_modded_message(to_fwd,TESLA_PREAP_FWD_MODDED,sizeof(TESLA_PREAP_FWD_MODDED)/sizeof(TESLA_PREAP_FWD_MODDED[0]),
+            tesla_compute_fwd_should_mod,tesla_compute_fwd_checksum);
+  }
   if (fwd_modded != -2) {
     //it's a forward modded message, so just forward now
     return fwd_modded;
@@ -377,6 +431,16 @@ const safety_hooks tesla_hooks = {
   .tx = tesla_tx_hook,
   .tx_lin = nooutput_tx_lin_hook,
   .fwd = tesla_fwd_hook,
-  .addr_check = tesla_rx_checks,
-  .addr_check_len = TESLA_RX_CHECK_LEN,
+  .addr_check = TESLA_AP_RX_CHECKS,
+  .addr_check_len = sizeof(TESLA_AP_RX_CHECKS)/sizeof(TESLA_AP_RX_CHECKS[0]),
+};
+
+const safety_hooks tesla_preap_hooks = {
+  .init = tesla_init,
+  .rx = tesla_rx_hook,
+  .tx = tesla_tx_hook,
+  .tx_lin = nooutput_tx_lin_hook,
+  .fwd = tesla_fwd_hook,
+  .addr_check = TESLA_PREAP_RX_CHECKS,
+  .addr_check_len = sizeof(TESLA_PREAP_RX_CHECKS)/sizeof(TESLA_PREAP_RX_CHECKS[0]),
 };
