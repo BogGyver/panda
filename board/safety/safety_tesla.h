@@ -84,9 +84,7 @@ AddrCheckStruct  TESLA_PREAP_RX_CHECKS[] = {
   };
 
 CanMsgFwd TESLA_PREAP_FWD_MODDED[] = {
-    {.msg = {0x488,2,4},.fwd_to_bus=0,.expected_timestep = 50000U,.counter_mask_H=0x00000000,.counter_mask_L=0x000F0000}, // DAS_steeringControl - Lat Control - 20Hz
-    {.msg = {0x2B9,2,8},.fwd_to_bus=0,.expected_timestep = 25000U,.counter_mask_H=0x00E00000,.counter_mask_L=0x00000000}, // DAS_control - Long Control - 40Hz
-    {.msg = {0x209,2,8},.fwd_to_bus=0,.expected_timestep = 25000U,.counter_mask_H=0x00E00000,.counter_mask_L=0x00000000}, // DAS_longControl - Long Control - 40Hz
+    {.msg = {0x370,2,8},.fwd_to_bus=0,.expected_timestep = 40000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // EPAS_sysStatus - Lat Control - 25Hz
   };
 
 bool autopilot_enabled = false;
@@ -162,7 +160,7 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
     int addr = GET_ADDR(to_push);
 
     if(bus == 0) {
-      if(addr == 0x370) {
+      if ((addr == 0x370) && (has_ap_hardware)) {
         // Steering angle: (0.1 * val) - 819.2 in deg.
         // Store it 1/10 deg to match steering request
         int angle_meas_new = (((GET_BYTE(to_push, 4) & 0x3F) << 8) | GET_BYTE(to_push, 5)) - 8192;
@@ -214,6 +212,13 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
     }
 
     if (bus == 2) {
+      if ((addr == 0x370) && (!has_ap_hardware)) {
+        // Steering angle: (0.1 * val) - 819.2 in deg.
+        // Store it 1/10 deg to match steering request
+        int angle_meas_new = (((GET_BYTE(to_push, 4) & 0x3F) << 8) | GET_BYTE(to_push, 5)) - 8192;
+        update_sample(&angle_meas, angle_meas_new);
+      }
+
       if (addr == 0x399) {
         // Autopilot status
         int autopilot_status = (GET_BYTE(to_push, 0) & 0xF);
@@ -318,10 +323,12 @@ static int tesla_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
   }
 
   if(addr == 0x45) {
-    // No button other than cancel can be sent by us
-    int control_lever_status = (GET_BYTE(to_send, 0) & 0x3F);
-    if((control_lever_status != 0) && (control_lever_status != 1)) {
-      violation = true;
+    // No button other than cancel can be sent by us when we have ap
+    if (has_ap_hardware) {
+      int control_lever_status = (GET_BYTE(to_send, 0) & 0x3F);
+      if((control_lever_status != 0) && (control_lever_status != 1)) {
+        violation = true;
+      }
     }
   }
 
@@ -364,19 +371,40 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
   }
 
   if(bus_num == 0) {
-    // Chassis to autopilot
+    if (has_ap_hardware) {
+      // Chassis to autopilot
 
-    //we need to modify EPAS_sysStatus->EPAS_eacStatus from 2 to 1 otherwise we can never 
-    //engage AutoPilot. Once we send the steering commands from OP the status
-    //changes from 1-AVAILABLE to 2-ACTIVE and AutoPilot becomes unavailable
-    //The condition has to be:
-    // IF controls_allowed AND EPAS_eacStatus = 2 THEN EPAS_eacStatus = 1
-    if ((addr == 0x370) && (controls_allowed == 1) && (!autopilot_enabled)) {
-      int epas_eacStatus = ((GET_BYTE(to_fwd, 6) & 0xE0) >> 5);
-      //we only change from 2 to 1 leaving all other values alone
-      if (epas_eacStatus == 2) {
-        to_fwd->RDHR = (to_fwd->RDHR & 0x001FFFFF) | 0X00200000;
-        to_fwd->RDHR = (to_fwd->RDHR | (tesla_compute_checksum(to_fwd) << 24));
+      //we need to modify EPAS_sysStatus->EPAS_eacStatus from 2 to 1 otherwise we can never 
+      //engage AutoPilot. Once we send the steering commands from OP the status
+      //changes from 1-AVAILABLE to 2-ACTIVE and AutoPilot becomes unavailable
+      //The condition has to be:
+      // IF controls_allowed AND EPAS_eacStatus = 2 THEN EPAS_eacStatus = 1
+      if ((addr == 0x370) && (controls_allowed == 1) && (!autopilot_enabled)) {
+        int epas_eacStatus = ((GET_BYTE(to_fwd, 6) & 0xE0) >> 5);
+        //we only change from 2 to 1 leaving all other values alone
+        if (epas_eacStatus == 2) {
+          to_fwd->RDHR = (to_fwd->RDHR & 0x001FFFFF) | 0X00200000;
+          to_fwd->RDHR = (to_fwd->RDHR | (tesla_compute_checksum(to_fwd) << 24));
+        }
+      }
+    } else {
+      //no AP hardware so we need to mod EPAS Controls
+      //there is no hurting in doing so because steering does not happen
+      //unless we send the steering control message
+      if (addr == 0x101)
+      {
+        to_fwd->RDLR = (to_fwd->RDLR & 0x0000FFFF) | 0x4000 | 0x1000; 
+        to_fwd->RDHR = 0x00;
+        // 0x4000: WITH_ANGLE, 0xC000: WITH_BOTH (angle and torque)
+        // 0x1000: enabled LDW for haptic
+        to_fwd->RDLR = (to_fwd->RDLR | (tesla_compute_checksum(to_fwd) << 16));
+      }
+
+      if (addr == 0x214) {
+        to_fwd->RDLR = (to_fwd->RDLR & 0x0000FFF8) | 0x01; 
+        to_fwd->RDHR = 0x00;
+        // 0x01 - EPB_ALLOW_EAC
+        to_fwd->RDLR = (to_fwd->RDLR | (tesla_compute_checksum(to_fwd) << 16));
       }
     }
     bus_fwd = 2;
