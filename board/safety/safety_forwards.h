@@ -36,6 +36,18 @@ int get_fwd_addr_check_index(CAN_FIFOMailBox_TypeDef *to_fwd,
   return index;
 }
 
+int get_addr_index(int addr, int bus, CanMsgFwd addr_list[], const int len, bool is_data) {
+  int index = -1;
+  for (int i = 0; i < len; i++) {
+    if ((addr == addr_list[i].msg.addr)  && 
+     (((bus == addr_list[i].msg.bus) && (!is_data)) || ((bus == addr_list[i].fwd_to_bus) && (is_data)))) {
+      index = i;
+      break;
+    }
+  }
+  return index;
+}
+
 void update_received_time(CanMsgFwd addr_list[], int index) {
     //this should never happen but let's check anyway
     if (index == -1) {
