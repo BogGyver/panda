@@ -16,7 +16,7 @@ typedef struct {
 bool fwd_check_valid(CAN_FIFOMailBox_TypeDef *to_push, 
                 uint32_t mask_H, uint32_t mask_L) {
     //we check for now only if the counter set in Comma2 is > 0
-    return (uint32_t)((to_push->RDHR & mask_H) + (to_push->RDLR & mask_L)) > 0;
+    return (((uint32_t)((to_push->RDHR & mask_H) + (to_push->RDLR & mask_L)) > 0) || (mask_H + mask_L == 0));
 }
 
 int get_fwd_addr_check_index(CAN_FIFOMailBox_TypeDef *to_fwd, 
