@@ -76,14 +76,14 @@ const CanMsg TESLA_AP_TX_MSGS[] = {
   };
 
 AddrCheckStruct  TESLA_AP_RX_CHECKS[] = {
-    {.msg = {{0x370, 0, 8, .expected_timestep = 40000U}}},   // EPAS_sysStatus (25Hz)
-    {.msg = {{0x108, 0, 8, .expected_timestep = 10000U}}},   // DI_torque1 (100Hz)
-    {.msg = {{0x118, 0, 6, .expected_timestep = 10000U}}},   // DI_torque2 (100Hz)
-    {.msg = {{0x155, 0, 8, .expected_timestep = 20000U}}},   // ESP_B (50Hz)
-    {.msg = {{0x20a, 0, 8, .expected_timestep = 20000U}}},   // BrakeMessage (50Hz)
-    {.msg = {{0x368, 0, 8, .expected_timestep = 100000U}}},  // DI_state (10Hz)
-    {.msg = {{0x318, 0, 8, .expected_timestep = 100000U}}},  // GTW_carState (10Hz)
-    {.msg = {{0x399, 2, 8, .expected_timestep = 500000U}}},  // AutopilotStatus (2Hz)
+    {.msg = {{0x370, 0, 8, .expected_timestep = 80000U}}},   // EPAS_sysStatus (25Hz)
+    {.msg = {{0x108, 0, 8, .expected_timestep = 20000U}}},   // DI_torque1 (100Hz)
+    {.msg = {{0x118, 0, 6, .expected_timestep = 20000U}}},   // DI_torque2 (100Hz)
+    {.msg = {{0x155, 0, 8, .expected_timestep = 40000U}}},   // ESP_B (50Hz)
+    {.msg = {{0x20a, 0, 8, .expected_timestep = 40000U}}},   // BrakeMessage (50Hz)
+    {.msg = {{0x368, 0, 8, .expected_timestep = 200000U}}},  // DI_state (10Hz)
+    {.msg = {{0x318, 0, 8, .expected_timestep = 200000U}}},  // GTW_carState (10Hz)
+    {.msg = {{0x399, 2, 8, .expected_timestep = 1000000U}}},  // AutopilotStatus (2Hz)
   };
 
 CanMsgFwd  TESLA_AP_FWD_MODDED[] = {
@@ -642,10 +642,10 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
 
   bool valid = false;
   if (has_ap_hardware) {
-    addr_safety_check(to_push, TESLA_AP_RX_CHECKS, sizeof(TESLA_AP_RX_CHECKS)/sizeof(TESLA_AP_RX_CHECKS[0]),
+    valid = addr_safety_check(to_push, TESLA_AP_RX_CHECKS, sizeof(TESLA_AP_RX_CHECKS)/sizeof(TESLA_AP_RX_CHECKS[0]),
                                  NULL, NULL, NULL);
   } else {
-    addr_safety_check(to_push, TESLA_PREAP_RX_CHECKS, sizeof(TESLA_PREAP_RX_CHECKS)/sizeof(TESLA_PREAP_RX_CHECKS[0]),
+    valid = addr_safety_check(to_push, TESLA_PREAP_RX_CHECKS, sizeof(TESLA_PREAP_RX_CHECKS)/sizeof(TESLA_PREAP_RX_CHECKS[0]),
                                  NULL, NULL, NULL);
   }
 
