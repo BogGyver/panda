@@ -1028,24 +1028,9 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
   }
 
   if(bus_num == 2) {
-    // Autopilot to chassis
-    //0x488 DAS_steeringControl - Lat Control
-    //0x2B9 DAS_control - Long Control
-    //0x209 DAS_longControl - Long Control
-    //0x399 DAS_status - HUD
-    //0x389 DAS_status2 - HUD
-    //0x239 DAS_lanes - HUD
-    //0x309 DAS_object - HUD
-    //0x3A9 DAS_telemetry - HUD
-    //0x3E9 DAS_bodyControls - Car Integration for turn signal on ALCA
-    bool is_lkas_msg = (addr == 0x488);
-    bool is_acc_msg = has_op_long_control && ((addr == 0x2B9) || (addr == 0x209));
-    bool is_hud_msg = has_hud_integration && ((addr == 0x399) || (addr == 0x389) || (addr == 0x239) || (addr == 0x309) || (addr == 0x3A9));
-    bool is_bodyControl_msg = has_body_controls && (addr == 0x3E9);
-    bool block_msg = controls_allowed && (is_lkas_msg || is_acc_msg || is_hud_msg || is_bodyControl_msg );
-    if(!block_msg) {
+      //we take care of what needs to be modded via fwd_modded method
+      //so make sure anything else is sent from 2 to 0
       bus_fwd = 0;
-    }
   }
 
   if(relay_malfunction) {
