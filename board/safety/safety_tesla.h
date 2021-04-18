@@ -761,8 +761,8 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
         // Autopilot status
         int autopilot_status = (GET_BYTE(to_push, 0) & 0xF);
         autopilot_enabled = (autopilot_status == 3) ||  // ACTIVE_1
-                            (autopilot_status == 4) ||  // ACTIVE_2
-                            (autopilot_status == 5);    // ACTIVE_NAVIGATE_ON_AUTOPILOT
+                            (autopilot_status == 4);// ||  // ACTIVE_2
+                            //(autopilot_status == 5);    // ACTIVE_NAVIGATE_ON_AUTOPILOT
         if (autopilot_enabled) {
           controls_allowed = 0;
         }
