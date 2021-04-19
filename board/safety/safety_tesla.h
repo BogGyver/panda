@@ -13,7 +13,7 @@ const struct lookup_t TESLA_LOOKUP_ANGLE_RATE_DOWN = {
 
 const int TESLA_DEG_TO_CAN = 10;
 
-const uint32_t TIME_TO_ENGAGE = 500000; //0.5s wait for AP
+const uint32_t TIME_TO_ENGAGE = 1000000; //1s wait for AP
 uint32_t time_cruise_engaged = 0;
 
 //for safetyParam parsing
@@ -144,6 +144,7 @@ CanMsgFwd TESLA_PREAP_FWD_MODDED[] = {
   }; 
 
 bool autopilot_enabled = false;
+bool epas_inhibited = false;
 
 static uint8_t tesla_compute_checksum(CAN_FIFOMailBox_TypeDef *to_push) {
   int addr = GET_ADDR(to_push);
@@ -702,18 +703,18 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
                               (cruise_state == 6) ||  // PRE_FAULT
                               (cruise_state == 7);    // PRE_CANCEL
         if (has_ap_hardware) {
-          if(cruise_engaged && !cruise_engaged_prev && !autopilot_enabled) {
+          if(cruise_engaged && !cruise_engaged_prev && !autopilot_enabled && !epas_inhibited) {
             time_cruise_engaged = TIM2->CNT;
           }
           
           if((time_cruise_engaged !=0) && (get_ts_elapsed(TIM2->CNT,time_cruise_engaged) >= TIME_TO_ENGAGE)) {
-            if (!autopilot_enabled) {
+            if (!autopilot_enabled && !epas_inhibited) {
               controls_allowed = 1;
             }
             time_cruise_engaged = 0;
           }
           
-          if(!cruise_engaged) {
+          if(!cruise_engaged || epas_inhibited) {
             controls_allowed = 0;
           }
         }
@@ -747,6 +748,10 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
           }
         }
       }
+ 
+      if (addr == 0x214) {
+        epas_inhibited = (to_push->RDLR & 0x07) == 0;
+      }
     }
 
     if (bus == 2) {
@@ -757,7 +762,7 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
         update_sample(&angle_meas, angle_meas_new);
       }
 
-      if (addr == 0x399) {
+      if ((addr == 0x399) && (has_ap_hardware)) {
         // Autopilot status
         int autopilot_status = (GET_BYTE(to_push, 0) & 0xF);
         autopilot_enabled = (autopilot_status == 3) ||  // ACTIVE_1
@@ -866,12 +871,15 @@ static int tesla_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
   }
 
   //do not allow hud integration messages if not enabled
-  if ((!has_hud_integration) && ((addr == 0x399) || (addr == 0x389) || (addr == 0x239) ||(addr == 0x309) || (addr == 0x3A9))) {
+  if ((!has_hud_integration) && ((addr == 0x399) || (addr == 0x389) || (addr == 0x239) ||(addr == 0x309) || (addr == 0x3A9) || (addr == 0x329) || (addr == 0x369) || (addr == 0x349))) {
     //{0x399, 0, 8},  // DAS_status - HUD
     //{0x389, 0, 8},  // DAS_status2 - HUD
     //{0x239, 0, 8},  // DAS_lanes - HUD
     //{0x309, 0, 8},  // DAS_object - HUD
     //{0x3A9, 0, 8},  // DAS_telemetry - HUD
+    //{0x329, 0, 8},  // DAS_warningMatrix0 - HUD
+    //{0x369, 0, 8},  // DAS_warningMatrix1 - HUD
+    //{0x349, 0, 8},  // DAS_warningMatrix3 - HUD
     tx = 0;
   }
 
@@ -1003,6 +1011,10 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
           to_fwd->RDHR = (to_fwd->RDHR & 0x001FFFFF) | 0X00200000;
           to_fwd->RDHR = (to_fwd->RDHR | (tesla_compute_checksum(to_fwd) << 24));
         }
+      }
+      //do not forward IC integration stuff from 0 -> 2 because they should not even be there
+      if ((addr == 0x399) || (addr == 0x389) || (addr == 0x239) ||(addr == 0x309) || (addr == 0x3A9) || (addr == 0x329) || (addr == 0x369) || (addr == 0x349)) {
+        return -1;
       }
     } else {
       //no AP hardware so we need to mod EPAS Controls
