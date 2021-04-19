@@ -13,7 +13,7 @@ const struct lookup_t TESLA_LOOKUP_ANGLE_RATE_DOWN = {
 
 const int TESLA_DEG_TO_CAN = 10;
 
-const uint32_t TIME_TO_ENGAGE = 1000000; //1s wait for AP
+const uint32_t TIME_TO_ENGAGE = 500000; //0.5s 1swait for AP status @ 2Hz
 uint32_t time_cruise_engaged = 0;
 
 //for safetyParam parsing
@@ -708,7 +708,7 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
           }
           
           if((time_cruise_engaged !=0) && (get_ts_elapsed(TIM2->CNT,time_cruise_engaged) >= TIME_TO_ENGAGE)) {
-            if (!autopilot_enabled && !epas_inhibited) {
+            if (cruise_engaged && !autopilot_enabled && !epas_inhibited) {
               controls_allowed = 1;
             }
             time_cruise_engaged = 0;
@@ -716,6 +716,10 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
           
           if(!cruise_engaged || epas_inhibited) {
             controls_allowed = 0;
+          }
+        } else {
+          if (cruise_engaged && !epas_inhibited) {
+              controls_allowed = 1;
           }
         }
         cruise_engaged_prev = cruise_engaged;
