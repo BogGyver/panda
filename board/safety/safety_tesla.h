@@ -23,6 +23,7 @@ const uint16_t TESLA_OP_LONG_CONTROL = 4;
 const uint16_t TESLA_HUD_INTEGRATION = 8;
 const uint16_t TESLA_BODY_CONTROLS = 16;
 const uint16_t TESLA_RADAR_EMULATION = 32;
+const uint16_t TESLA_ENABLE_HAO = 64;
 
 bool has_ap_hardware = false;
 bool has_acc = false;
@@ -30,6 +31,7 @@ bool has_op_long_control = false;
 bool has_hud_integration = false;
 bool has_body_controls = false;
 bool do_radar_emulation = false;
+bool enable_hao = false;
 int last_acc_status = -1;
 
 //pedal pressed (with Pedal)
@@ -683,7 +685,7 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
       if(addr == 0x108) {
         // Gas pressed - only for ACC for now
         if (has_ap_hardware) {
-          gas_pressed = (GET_BYTE(to_push, 6) != 0);
+          gas_pressed = ((GET_BYTE(to_push, 6) != 0) && (!enable_hao));
         }
       }
 
@@ -1069,7 +1071,8 @@ static void tesla_init(int16_t param) {
   has_op_long_control = GET_FLAG(param, TESLA_OP_LONG_CONTROL);
   has_hud_integration = GET_FLAG(param, TESLA_HUD_INTEGRATION);
   has_body_controls = GET_FLAG(param, TESLA_BODY_CONTROLS);
-  do_radar_emulation = GET_FLAG(param,TESLA_RADAR_EMULATION);
+  do_radar_emulation = GET_FLAG(param, TESLA_RADAR_EMULATION);
+  enable_hao = GET_FLAG(param, TESLA_ENABLE_HAO);
 }
 
 const safety_hooks tesla_hooks = {
