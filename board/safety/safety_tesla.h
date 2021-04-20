@@ -75,6 +75,9 @@ const CanMsg TESLA_AP_TX_MSGS[] = {
     {0x309, 0, 8},  // DAS_object - HUD
     {0x3A9, 0, 8},  // DAS_telemetry - HUD
     {0x3E9, 0, 8},  // DAS_bodyControls - Car Integration for turn signal on ALCA
+    {0x329, 0, 8},  // DAS_warningMatrix0
+    {0x369, 0, 8},  // DAS_warningMatrix1
+    {0x349, 0, 8},  // DAS_warningMatrix3
   };
 
 AddrCheckStruct  TESLA_AP_RX_CHECKS[] = {
@@ -118,6 +121,9 @@ const CanMsg TESLA_PREAP_TX_MSGS[] = {
     {0x309, 0, 8},  // DAS_object - HUD
     {0x3A9, 0, 8},  // DAS_telemetry - HUD
     {0x3E9, 0, 8},  // DAS_bodyControls - Car Integration for turn signal on ALCA
+    {0x329, 0, 8},  // DAS_warningMatrix0
+    {0x369, 0, 8},  // DAS_warningMatrix1
+    {0x349, 0, 8},  // DAS_warningMatrix3
   };
 
 AddrCheckStruct  TESLA_PREAP_RX_CHECKS[] = {
