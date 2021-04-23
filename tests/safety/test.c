@@ -29,6 +29,9 @@ struct sample_t torque_driver;
 TIM_TypeDef timer;
 TIM_TypeDef *TIM2 = &timer;
 
+
+
+
 // from board_declarations.h
 #define HW_TYPE_UNKNOWN 0U
 #define HW_TYPE_WHITE_PANDA 1U
@@ -91,6 +94,10 @@ void gmlan_switch_init(int timeout_enable){
 }
 
 #include "safety.h"
+
+void can_send(CAN_FIFOMailBox_TypeDef *to_push, uint8_t bus_number, bool skip_tx_hook) {
+
+}
 
 void set_controls_allowed(bool c){
   controls_allowed = c;
