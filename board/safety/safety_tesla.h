@@ -645,7 +645,7 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
   if ((hw_type == HW_TYPE_WHITE_PANDA) || (hw_type == HW_TYPE_WHITE_PANDA))
   {
     //we're still in tesla safety mode, reset the timeout counter and make sure our output is enabled
-    set_gmlan_digital_output(GMLAN_HIGH);
+    set_gmlan_digital_output(0); //GMLAN_HIGH
     reset_gmlan_switch_timeout(); 
   };
 

@@ -80,6 +80,16 @@ void fault_recovered(uint32_t fault) {
 #endif
 #define NULL ((void*)0)
 #define static
+
+void set_gmlan_digital_output(int to_set){
+}
+
+void reset_gmlan_switch_timeout(void){
+}
+
+void gmlan_switch_init(int timeout_enable){
+}
+
 #include "safety.h"
 
 void set_controls_allowed(bool c){
@@ -209,12 +219,5 @@ void init_tests_honda(void){
   honda_fwd_brake = false;
 }
 
-void set_gmlan_digital_output(int to_set){
-}
 
-void reset_gmlan_switch_timeout(void){
-}
-
-void gmlan_switch_init(int timeout_enable){
-}
 
