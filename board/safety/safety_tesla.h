@@ -152,6 +152,8 @@ CanMsgFwd TESLA_PREAP_FWD_MODDED[] = {
   }; 
 
 bool autopilot_enabled = false;
+bool eac_enabled = false;
+bool autopark_enabled = false;
 bool epas_inhibited = false;
 
 static uint8_t tesla_compute_checksum(CAN_FIFOMailBox_TypeDef *to_push) {
@@ -235,60 +237,60 @@ static bool tesla_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
     int addr = GET_ADDR(to_fwd);
 
     if (addr == 0x488) {
-      valid = !autopilot_enabled;
+      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     if (addr == 0x209) {
-      valid = !autopilot_enabled;
+      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     if (addr == 0x2B9) {
-      valid = !autopilot_enabled;      
+      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);      
     }
 
     //check the ones for IC integration
     //DAS_bodyControls
     if (addr == 0x3E9) {
-      valid = !autopilot_enabled;
+      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     //DAS_status
     if (addr == 0x399) {
-      valid = !autopilot_enabled;
+      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     //DAS_status2
     if (addr == 0x389) {
-      valid = !autopilot_enabled;
+      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     //DAS_lanes
     if (addr == 0x239) {
-      valid = !autopilot_enabled;
+      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     //DAS_warningMatrix0
     if (addr == 0x329) {
-      valid = !autopilot_enabled;
+      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     //DAS_warningMatrix1
     if (addr == 0x369) {
-      valid = !autopilot_enabled;
+      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     //DAS_warningMatrix3
     if (addr == 0x349) {
-      valid = !autopilot_enabled;
+      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     // DAS_telemetry
     if (addr == 0x3A9) {
       if (has_ap_hardware) {
         int mux = to_fwd->RDLR & 0xFF;
-        valid = ((!autopilot_enabled) && (mux == 0));
+        valid = ((!(autopilot_enabled || eac_enabled || autopark_enabled)) && (mux == 0));
       } else {
-        valid = !autopilot_enabled;
+        valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
       }      
     }
 
@@ -296,9 +298,9 @@ static bool tesla_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
     if (addr == 0x3B1) {
       if (has_ap_hardware) {
         int mux = to_fwd->RDLR & 0x0F;
-        valid = ((!autopilot_enabled) && (mux == 0));
+        valid = ((!(autopilot_enabled || eac_enabled || autopark_enabled)) && (mux == 0));
       } else {
-        valid = !autopilot_enabled;
+        valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
       }      
     }
 
@@ -306,9 +308,9 @@ static bool tesla_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
     if (addr == 0x309) {
       if (has_ap_hardware) {
         int mux = to_fwd->RDLR & 0x07;
-        valid = ((!autopilot_enabled) && (mux == 0));
+        valid = ((!(autopilot_enabled || eac_enabled || autopark_enabled)) && (mux == 0));
       } else {
-        valid = !autopilot_enabled;
+        valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
       }      
     }
 
@@ -711,12 +713,12 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
                               (cruise_state == 6) ||  // PRE_FAULT
                               (cruise_state == 7);    // PRE_CANCEL
         if (has_ap_hardware) {
-          if(cruise_engaged && !cruise_engaged_prev && !autopilot_enabled && !epas_inhibited) {
+          if(cruise_engaged && !cruise_engaged_prev && !(autopilot_enabled || eac_enabled || autopark_enabled) && !epas_inhibited) {
             time_cruise_engaged = TIM2->CNT;
           }
           
           if((time_cruise_engaged !=0) && (get_ts_elapsed(TIM2->CNT,time_cruise_engaged) >= TIME_TO_ENGAGE)) {
-            if (cruise_engaged && !autopilot_enabled && !epas_inhibited) {
+            if (cruise_engaged && !(autopilot_enabled || eac_enabled || autopark_enabled) && !epas_inhibited) {
               controls_allowed = 1;
             }
             time_cruise_engaged = 0;
@@ -780,7 +782,18 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
         autopilot_enabled = (autopilot_status == 3) ||  // ACTIVE_1
                             (autopilot_status == 4);// ||  // ACTIVE_2
                             //(autopilot_status == 5);    // ACTIVE_NAVIGATE_ON_AUTOPILOT
-        if (autopilot_enabled) {
+        if (autopilot_enabled || eac_enabled || autopark_enabled) {
+          controls_allowed = 0;
+        }
+      }
+
+      if ((addr == 0x219) && (has_ap_hardware)) {
+        //autopark and eac status
+        int psc_status = ((GET_BYTE(to_push, 0) & 0xF0) >> 4);
+        int eac_status = (GET_BYTE(to_push, 1) & 0x07);
+        eac_enabled = (eac_status == 1);
+        autopark_enabled = (psc_status == 14) || ((psc_status >= 1) && (psc_status <=8));
+        if (autopilot_enabled || eac_enabled || autopark_enabled) {
           controls_allowed = 0;
         }
       }
@@ -1016,7 +1029,7 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
       //changes from 1-AVAILABLE to 2-ACTIVE and AutoPilot becomes unavailable
       //The condition has to be:
       // IF controls_allowed AND EPAS_eacStatus = 2 THEN EPAS_eacStatus = 1
-      if ((addr == 0x370) && (controls_allowed == 1) && (!autopilot_enabled)) {
+      if ((addr == 0x370) && (controls_allowed == 1) && (!(autopilot_enabled || eac_enabled || autopark_enabled))) {
         int epas_eacStatus = ((GET_BYTE(to_fwd, 6) & 0xE0) >> 5);
         //we only change from 2 to 1 leaving all other values alone
         if (epas_eacStatus == 2) {
