@@ -99,8 +99,8 @@ CanMsgFwd  TESLA_AP_FWD_MODDED[] = {
     //for DAS_bodyControls Mask all but checksum, turnSignalRequest, turnSignalReason and hazardRequest
     {.msg = {0x3E9,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00FFFFF,.counter_mask_L=0xFFF0FCF3}, // DAS_bodyControls - Control Body - 2Hz - 
     //used for IC integration
-    {.msg = {0x399,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_status - Status - 2Hz
-    {.msg = {0x389,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_status2 - Status - 2Hz
+    {.msg = {0x399,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F8031F,.counter_mask_L=0xFF3FFF0F}, // DAS_status - Status - 2Hz
+    {.msg = {0x389,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F0FF3F,.counter_mask_L=0xFFFFFFFF}, // DAS_status2 - Status - 2Hz
     {.msg = {0x329,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix0 - Status - 1Hz - nocounter/nochecksum
     {.msg = {0x369,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix1 - Status - 1Hz - nocounter/nochecksum
     {.msg = {0x349,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix3 - Status - 1Hz - nocounter/nochecksum
@@ -255,14 +255,14 @@ static bool tesla_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
       valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
-    //DAS_status
+    //DAS_status - send as long as the timestamp is correct
     if (addr == 0x399) {
-      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
+      valid = true; //!(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
-    //DAS_status2
+    //DAS_status2 - send as long as the timestamp is correct
     if (addr == 0x389) {
-      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
+      valid = true; //!(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     //DAS_lanes
