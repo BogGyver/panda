@@ -276,17 +276,17 @@ static bool tesla_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
 
     //DAS_warningMatrix0
     if (addr == 0x329) {
-      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
+      valid = true; //!(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     //DAS_warningMatrix1
     if (addr == 0x369) {
-      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
+      valid = true; //!(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     //DAS_warningMatrix3
     if (addr == 0x349) {
-      valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
+      valid = true; //!(autopilot_enabled || eac_enabled || autopark_enabled);
     }
 
     // DAS_telemetry
