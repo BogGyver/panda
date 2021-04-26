@@ -14,7 +14,10 @@ const struct lookup_t TESLA_LOOKUP_ANGLE_RATE_DOWN = {
 const int TESLA_DEG_TO_CAN = 10;
 
 const uint32_t TIME_TO_ENGAGE = 500000; //0.5s 1swait for AP status @ 2Hz
+const uint32_t TIME_TO_HIDE_ERRORS = 4000000; //4s to hide potential fake DAS errors after disengage
+
 uint32_t time_cruise_engaged = 0;
+uint32_t time_op_disengaged = 0;
 
 //for safetyParam parsing
 const uint16_t TESLA_HAS_AP_HARDWARE = 1;
@@ -33,6 +36,7 @@ bool has_body_controls = false;
 bool do_radar_emulation = false;
 bool enable_hao = false;
 int last_acc_status = -1;
+int prev_controls_allowed = 0;
 
 //pedal pressed (with Pedal)
 int pedalPressed = 0;
@@ -100,7 +104,7 @@ CanMsgFwd  TESLA_AP_FWD_MODDED[] = {
     {.msg = {0x3E9,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00FFFFF,.counter_mask_L=0xFFF0FCF3}, // DAS_bodyControls - Control Body - 2Hz - 
     //used for IC integration
     {.msg = {0x399,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F8031F,.counter_mask_L=0xFF3FFFF0}, // DAS_status - Status - 2Hz
-    {.msg = {0x389,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F0FF3F,.counter_mask_L=0xFFFFFFFF}, // DAS_status2 - Status - 2Hz
+    {.msg = {0x389,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F0FF3F,.counter_mask_L=0xFFFF3FFF}, // DAS_status2 - Status - 2Hz
     {.msg = {0x329,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix0 - Status - 1Hz - nocounter/nochecksum
     {.msg = {0x369,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix1 - Status - 1Hz - nocounter/nochecksum
     {.msg = {0x349,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix3 - Status - 1Hz - nocounter/nochecksum
@@ -980,6 +984,12 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
   int addr = GET_ADDR(to_fwd);
   int fwd_modded = -2;
 
+  //check for disengagement
+  if ((prev_controls_allowed != controls_allowed) and (controls_allowed == 0)) {
+    time_op_disengaged = TIM2->CNT;
+  }
+  prev_controls_allowed = controls_allowed;
+
   //do not forward pedal messages 0x551 and 0x552
   if (((addr == 0x551) || (addr == 0x552)) && ((pedalCan == bus_num) || (pedalCan == -1))) {
       return -1;
@@ -1068,6 +1078,13 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
   if(bus_num == 2) {
       //we take care of what needs to be modded via fwd_modded method
       //so make sure anything else is sent from 2 to 0
+
+      //if disengage less than 3 seconds ago, make DAS_status2->DAS_activationFailureStatus 0
+      if ((addr = 0x389) && (get_ts_elapsed(TIM2->CNT,time_op_disengaged) <= TIME_TO_HIDE_ERRORS)) {
+        to_fwd->RDLR = (to_fwd->RDLR & 0xFFFF3FFF); 
+        to_fwd->RDHR = (to_fwd->RDHR & 0x00FFFFFF);
+        to_fwd->RDHR = (to_fwd->RDHR | (tesla_compute_checksum(to_fwd) << 24));
+      } 
       bus_fwd = 0;
   }
 
