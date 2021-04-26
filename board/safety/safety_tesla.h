@@ -1086,6 +1086,14 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
         to_fwd->RDHR = (to_fwd->RDHR | (tesla_compute_checksum(to_fwd) << 24));
       } 
       bus_fwd = 0;
+
+      //if disengage less than 3 seconds ago, make DAS_status->DAS_autopilotState 2 so we don't trigger warnings
+      if ((addr = 0x399) && (get_ts_elapsed(TIM2->CNT,time_op_disengaged) <= TIME_TO_HIDE_ERRORS)) {
+        to_fwd->RDLR = ((to_fwd->RDLR & 0xFFFFFFF0) | 2); 
+        to_fwd->RDHR = (to_fwd->RDHR & 0x00FFFFFF);
+        to_fwd->RDHR = (to_fwd->RDHR | (tesla_compute_checksum(to_fwd) << 24));
+      } 
+      bus_fwd = 0;
   }
 
   if(relay_malfunction) {
