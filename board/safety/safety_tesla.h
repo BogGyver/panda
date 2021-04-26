@@ -985,7 +985,7 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
   int fwd_modded = -2;
 
   //check for disengagement
-  if ((prev_controls_allowed != controls_allowed) and (controls_allowed == 0)) {
+  if ((prev_controls_allowed != controls_allowed) && (controls_allowed == 0)) {
     time_op_disengaged = TIM2->CNT;
   }
   prev_controls_allowed = controls_allowed;
