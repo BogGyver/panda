@@ -1098,7 +1098,7 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
 
         //if disengage less than 3 seconds ago, hide warningMatrix values
         if ((addr == 0x329) || (addr == 0x349) || (addr == 0x369))  {
-          to_fwd->RDLR = (to_fwd->RDLR & 0x00000000)
+          to_fwd->RDLR = (to_fwd->RDLR & 0x00000000);
           to_fwd->RDHR = (to_fwd->RDHR & 0x00000000);
         } 
       }
