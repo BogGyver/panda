@@ -1079,20 +1079,29 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
       //we take care of what needs to be modded via fwd_modded method
       //so make sure anything else is sent from 2 to 0
 
-      //if disengage less than 3 seconds ago, make DAS_status2->DAS_activationFailureStatus 0
-      if ((addr = 0x389) && (get_ts_elapsed(TIM2->CNT,time_op_disengaged) <= TIME_TO_HIDE_ERRORS)) {
-        to_fwd->RDLR = (to_fwd->RDLR & 0xFFFF3FFF); 
-        to_fwd->RDHR = (to_fwd->RDHR & 0x00FFFFFF);
-        to_fwd->RDHR = (to_fwd->RDHR | (tesla_compute_checksum(to_fwd) << 24));
-      } 
-      bus_fwd = 0;
+      //if disengage less than 3 seconds ago, 
+      if ((controls_allowed == 0) && (get_ts_elapsed(TIM2->CNT,time_op_disengaged) <= TIME_TO_HIDE_ERRORS)) {
+        //make DAS_status2->DAS_activationFailureStatus 0
+        if (addr ==0x389) {
+          to_fwd->RDLR = (to_fwd->RDLR & 0xFFFF3FFF); 
+          to_fwd->RDHR = (to_fwd->RDHR & 0x00FFFFFF);
+          to_fwd->RDHR = (to_fwd->RDHR | (tesla_compute_checksum(to_fwd) << 24));
+        } 
+        
 
-      //if disengage less than 3 seconds ago, make DAS_status->DAS_autopilotState 2 so we don't trigger warnings
-      if ((addr = 0x399) && (get_ts_elapsed(TIM2->CNT,time_op_disengaged) <= TIME_TO_HIDE_ERRORS)) {
-        to_fwd->RDLR = ((to_fwd->RDLR & 0xFFFFFFF0) | 2); 
-        to_fwd->RDHR = (to_fwd->RDHR & 0x00FFFFFF);
-        to_fwd->RDHR = (to_fwd->RDHR | (tesla_compute_checksum(to_fwd) << 24));
-      } 
+        //make DAS_status->DAS_autopilotState 2 so we don't trigger warnings
+        if (addr == 0x399) {
+          to_fwd->RDLR = ((to_fwd->RDLR & 0xFFFFFFF0) | 2); 
+          to_fwd->RDHR = (to_fwd->RDHR & 0x00FFFFFF);
+          to_fwd->RDHR = (to_fwd->RDHR | (tesla_compute_checksum(to_fwd) << 24));
+        } 
+
+        //if disengage less than 3 seconds ago, hide warningMatrix values
+        if ((addr == 0x329) || (addr == 0x349) || (addr == 0x369))  {
+          to_fwd->RDLR = (to_fwd->RDLR & 0x00000000)
+          to_fwd->RDHR = (to_fwd->RDHR & 0x00000000);
+        } 
+      }
       bus_fwd = 0;
   }
 
