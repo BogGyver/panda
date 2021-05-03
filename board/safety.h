@@ -1,6 +1,6 @@
 // include first, needed by safety policies
 #include "safety_declarations.h"
-// includ the safety forwards
+// include the safety forwards
 #include "safety_forwards.h"
 // Include the actual safety policies.
 #include "safety/safety_defaults.h"
