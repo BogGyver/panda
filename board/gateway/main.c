@@ -22,7 +22,7 @@
 
 // uncomment for usb debugging via debug_console.py
 #define TGW_USB
-// #define DEBUG_CAN
+#define DEBUG_CAN
 #define DEBUG_CTRL
 
 #ifdef TGW_USB
@@ -213,6 +213,7 @@ void CAN3_TX_IRQ_Handler(void) {
 }
 
 #define MAX_TIMEOUT 50U
+#define MAX_TIMEOUT2 200U
 uint32_t timeout = 0;
 uint32_t timeout_f10 = 0;
 uint32_t timeout_f11 = 0;
@@ -227,16 +228,23 @@ uint32_t timeout_f11 = 0;
 #define STATE_AEB_CTRL 7U
 
 uint8_t state = FAULT_STARTUP;
+
+#define MODE_ACC_CTRL 1U
+#define MODE_AEB_CTRL 2U
 uint8_t ctrl_mode = 0;
+
 bool send = 0;
 
 //------------- BUS 1 - PTCAN ------------//
 
-#define ACC_CTRL 0xF10
-bool enable_acc = 0;
+#define ACC_CTRL 0xF1
 int acc_cmd = 0;
+bool enable_acc = 0;
+bool mini_car = 0;
+bool distance = 0;
+bool release_standstill = 0;
 
-#define AEB_CTRL 0xF11
+#define AEB_CTRL 0xF2
 bool enable_aeb_control = 0;
 int aeb_cmd = 0;
 
@@ -267,6 +275,9 @@ void CAN1_RX0_IRQ_Handler(void) {
 
     // CAN data buffer
     uint8_t dat[8];
+    for (int i=0; i<8; i++) {
+      dat[i] = GET_BYTE(&CAN1->sFIFOMailBox[0], i);
+    }
 
     switch (address) {
       case CAN_UPDATE:
@@ -284,37 +295,64 @@ void CAN1_RX0_IRQ_Handler(void) {
         break;
       case ACC_CTRL:
         // send this EXACTLY how ACC_CONTROL is sent
-        for (int i=0; i<8; i++) {
-          dat[i] = GET_BYTE(&CAN3->sFIFOMailBox[0], i);
-        }
-        if (dat[8] == toyota_checksum(address, dat, 8)){
+        if (dat[7] == toyota_checksum(address, dat, 8)){
           enable_acc = 1; // TODO: set this somewhere else.. 1D2? do we need this?
+          distance = (dat[2] >> 4U) & 1U;
           acc_cmd = (dat[0] << 8U) | dat[1]; // ACC_CMD
+          mini_car = (dat[2] >> 5U) & 1U;
           acc_cancel = (dat[3] & 1U);
+          release_standstill = (dat[3] >> 7U) & 1U;
           // reset the timer
           timeout_f10 = 0;
-          ctrl_mode |= 1; // set ACC_CTRL mode bit
+          ctrl_mode = MODE_ACC_CTRL; // set ACC_CTRL mode bit
+          #ifdef DEBUG_CTRL
+            puts("GOT ACC_CTRL");
+          #endif
         } else {
+          #ifdef DEBUG_CTRL
+            for(int ii = 0; ii<8; ii++){ 
+              puth2(dat[ii]);
+            }
+            puts("\n expected: ");
+            puth2(toyota_checksum(address, dat, 8));
+            puts(" got: ");
+            puth2(dat[7]);
+            puts("\n");
+          #endif
           state = FAULT_BAD_CHECKSUM;
           enable_acc = 0;
           acc_cmd = 0;
+          distance = 0;
+          mini_car = 0;
+          acc_cancel = 0;
+          release_standstill = 0;
         }
         to_fwd.RIR &= 0xFFFFFFFE; // do not fwd
         break;
       case AEB_CTRL:
         // send this EXACTLY how PRE_COLLISION2 is sent
-        for (int i=0; i<8; i++) {
-          dat[i] = GET_BYTE(&CAN3->sFIFOMailBox[0], i);
-        }
-        if (dat[8] == toyota_checksum(address, dat, 8)){
+        if (dat[7] == toyota_checksum(address, dat, 8)){
           // an emergency maneuver is being requested
           enable_aeb_control = 1;
           aeb_cmd = (dat[0] << 2U) | (dat[1] & 3U);
           // reset the timer
           timeout_f11 = 0;
-          ctrl_mode |= (1 << 1U); // set AEB_CTRL mode bit
+          ctrl_mode = MODE_AEB_CTRL; // set AEB_CTRL mode bit
           state = STATE_AEB_CTRL;
+          #ifdef DEBUG_CTRL
+            puts("GOT AEB_CTRL");
+          #endif
         } else {
+          #ifdef DEBUG_CTRL
+            for(int ii = 0; ii<8; ii++){ 
+              puth2(dat[ii]);
+            }
+            puts("\n expected: ");
+            puth2(toyota_checksum(address, dat, 8));
+            puts(" got: ");
+            puth2(dat[7]);
+            puts("\n");
+          #endif
           enable_aeb_control = 0;
           aeb_cmd = 0;
           state = FAULT_BAD_CHECKSUM;
@@ -376,7 +414,7 @@ void CAN3_RX0_IRQ_Handler(void) {
     uint16_t address = CAN3->sFIFOMailBox[0].RIR >> 21;
     
     #ifdef DEBUG_CAN
-    puts("CAN2 RX: ");
+    puts("CAN3 RX: ");
     puth(address);
     puts("\n");
     #endif
@@ -394,12 +432,14 @@ void CAN3_RX0_IRQ_Handler(void) {
           dat[2] &= 0x3F; // mask off the top 2 bits
           dat[2] |= (1 << 6U); // SET_ME_X01
           dat[3] |= (1 << 6U); // permit_braking
-          dat[7] = toyota_checksum(address, dat, 8); 
           if (enable_acc){ 
             // modify this before sending to the car only if requested
             dat[0] = (acc_cmd >> 8U);
             dat[1] = (acc_cmd & 0xFF);
+            dat[2] |= ((mini_car << 5U) | (distance << 4U));
+            dat[3] |= (release_standstill << 7U) | (acc_cancel << 0U);
           }
+          dat[7] = toyota_checksum(address, dat, 8);  // do the checksum after modding data
           to_fwd.RDLR = dat[0] | (dat[1] << 8) | (dat[2] << 16) | (dat[3] << 24);
           to_fwd.RDHR = dat[4] | (dat[5] << 8) | (dat[6] << 16) | (dat[7] << 24);
           // reset the timer for seeing the DSU
@@ -506,15 +546,17 @@ void TIM3_IRQ_Handler(void) {
   } else {
     timeout += 1U;
   }
-  if (timeout_f10 == MAX_TIMEOUT){
+  if (timeout_f10 == MAX_TIMEOUT2){
     enable_acc = 0;
     ctrl_mode &= 0xFE; // clear ACC ctrl mode bit
+    puts("F10 TIMEOUT");
   } else {
     timeout_f10 += 1U;
   }
-  if (timeout_f11 == MAX_TIMEOUT){
+  if (timeout_f11 == MAX_TIMEOUT2){
     enable_aeb_control = 0;
     ctrl_mode &= 0xFD; // clear AEB ctrl mode bit
+    puts("F11 TIMEOUT");
   } else {
     timeout_f11 += 1U;
   }

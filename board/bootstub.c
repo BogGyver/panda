@@ -7,9 +7,6 @@
 #include "obj/gitversion.h"
 
 #ifdef STM32F4
-  #ifndef GATEWAY
-    #define PANDA
-  #endif
   #include "stm32f4xx.h"
   #include "stm32f4xx_hal_gpio_ex.h"
 #else

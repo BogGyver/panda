@@ -21,6 +21,22 @@ if os.getenv("PEDAL"):
     "-DPEDAL",
   ]
 
+if os.getenv("GATEWAY"):
+  PROJECT = "gateway"
+  STARTUP_FILE = "startup_stm32f413xx.s"
+  MAIN = "gateway/main.c"
+  PROJECT_FLAGS = [
+    "-mcpu=cortex-m4",
+    "-mhard-float",
+    "-DSTM32F4",
+    "-DSTM32F413xx",
+    "-mfpu=fpv4-sp-d16",
+    "-fsingle-precision-constant",
+    "-Os",
+    "-g",
+    "-DGATEWAY",
+  ]
+
 else:
   PROJECT = "panda"
   STARTUP_FILE = "startup_stm32f413xx.s"
@@ -34,6 +50,7 @@ else:
     "-fsingle-precision-constant",
     "-Os",
     "-g",
+    "-DPANDA"
   ]
 
   if not PC:

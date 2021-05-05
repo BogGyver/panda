@@ -68,8 +68,8 @@ const CanMsg TOYOTA_TX_MSGS[] = {{0x344, 0, 8},   // AEB force
                                  {0x343, 0, 8},   // ACC_CTRL
                                  {0x1D2, 0, 8},   // PCM Cruise State
                                  {0x200, 0, 6},   // interceptor_gas
-                                 {0xF10, 0, 6},   // DSU Gateway Control ACC
-                                 {0xF11, 0, 6}};  // DSU Gateway Control AEB
+                                 {0xF1, 0, 6},   // DSU Gateway Control ACC
+                                 {0xF2, 0, 6}};  // DSU Gateway Control AEB
 
 AddrCheckStruct toyota_rx_checks[] = {
   {.msg = {{ 0xaa, 0, 8, .check_checksum = false, .expected_timestep = 12000U}}},

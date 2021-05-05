@@ -16,11 +16,10 @@
   #include "boards/uno.h"
   #include "boards/dos.h"
 #else
-  #ifdef GATEWAY
-    #include "boards/gateway.h"
-  #else
-    #include "boards/pedal.h"
-  #endif
+  #include "boards/pedal.h"
+#endif
+#ifdef GATEWAY
+  #include "boards/gateway.h"
 #endif
 
 void detect_board_type(void) {
@@ -49,9 +48,14 @@ void detect_board_type(void) {
       hw_type = HW_TYPE_PEDAL;
       current_board = &board_pedal;
     #else
+    #ifdef GATEWAY
+      hw_type = HW_TYPE_GATEWAY;
+      current_board = &board_gateway;
+    #else
       hw_type = HW_TYPE_UNKNOWN;
       puts("Hardware type is UNKNOWN!\n");
     #endif
+  #endif
   #endif
 }
 
