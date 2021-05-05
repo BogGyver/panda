@@ -1,7 +1,7 @@
 // #include "safety_forwards.h"
 
 // flag for switching between TSS and Merlin Autonomy on the fly
-bool merlin_enable = false;
+bool merlin_enable = true;
 
 // flag for emergency maneuvers
 bool emergency_takeover = false;
@@ -13,12 +13,13 @@ bool stock_lka = false;
 
 // TSS2 long control happens at the FCAM
 // Pedal can be used with AEB for long control outside of ACC
+// letting OP control checksums / counters for the most part
 CanMsgFwd  TSS2_FWD_MSG[] = {
     //used for control
-    {.msg = {0x2e4,2,5},.fwd_to_bus=0,.expected_timestep = 10000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000FC0}, // LKA_STEERING - Lat Control - 100Hz
-    {.msg = {0x343,2,8},.fwd_to_bus=0,.expected_timestep = 10000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000FC0}, // ACC_CONTROL - Long Control - 100Hz
+    {.msg = {0x2e4,2,5},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKA_STEERING - Lat Control - 100Hz
+    {.msg = {0x343,2,8},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // ACC_CONTROL - Long Control - 100Hz
     {.msg = {0x344,2,8},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // ACC1F01 - AEB Braking - 50Hz
-    {.msg = {0x191,2,8},.fwd_to_bus=0,.expected_timestep = 10000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000FC0}, // LTA_STEERING - Lat Control - 100Hz
+    {.msg = {0x191,2,8},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LTA_STEERING - Lat Control - 100Hz
     {.msg = {0x412,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKAS_HUD - no counter
   };
 
@@ -26,7 +27,7 @@ CanMsgFwd  TSS2_FWD_MSG[] = {
 // Emergency takeover braking will happen at the gateway using different CAN IDs
 CanMsgFwd  TSS1_FWD_MSG[] = {
     //used for control
-    {.msg = {0x2e4,2,5},.fwd_to_bus=0,.expected_timestep = 10000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000FC0}, // LKA_STEERING - Lat Control - 100Hz
+    {.msg = {0x2e4,2,5},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKA_STEERING - Lat Control - 100Hz
     {.msg = {0x412,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKAS_HUD - no counter
   };
 
@@ -68,8 +69,8 @@ const CanMsg TOYOTA_TX_MSGS[] = {{0x344, 0, 8},   // AEB force
                                  {0x343, 0, 8},   // ACC_CTRL
                                  {0x1D2, 0, 8},   // PCM Cruise State
                                  {0x200, 0, 6},   // interceptor_gas
-                                 {0xF1, 0, 6},   // DSU Gateway Control ACC
-                                 {0xF2, 0, 6}};  // DSU Gateway Control AEB
+                                 {0xF1, 0, 8},   // DSU Gateway Control ACC
+                                 {0xF2, 0, 8}};  // DSU Gateway Control AEB
 
 AddrCheckStruct toyota_rx_checks[] = {
   {.msg = {{ 0xaa, 0, 8, .check_checksum = false, .expected_timestep = 12000U}}},
@@ -106,20 +107,20 @@ static bool toyota_compute_fwd_checksum(CAN_FIFOMailBox_TypeDef *to_fwd) {
   
   if (addr == 0x2E4){
     // 0x2E4 is only 5 bytes. send 
-    to_fwd->RDHR = (to_fwd->RDHR | (checksum << 0));
+    to_fwd->RDHR = ((to_fwd->RDHR & 0x00) | (checksum << 0));
     valid = true;
   }
   // the other ctrl msgs are 8 bytes
   if (addr == 0x191){ 
-    to_fwd->RDHR = (to_fwd->RDHR | (checksum << 24));
+    to_fwd->RDHR = ((to_fwd->RDHR & 0x00FFFFFF) | (checksum << 24));
     valid = true;
   }
   if (addr == 0x343){ 
-    to_fwd->RDHR = (to_fwd->RDHR | (checksum << 24));
+    to_fwd->RDHR = ((to_fwd->RDHR & 0x00FFFFFF) | (checksum << 24));
     valid = true;
   }
   if (addr == 0x344){ 
-    to_fwd->RDHR = (to_fwd->RDHR | (checksum << 24));
+    to_fwd->RDHR = ((to_fwd->RDHR & 0x00FFFFFF) | (checksum << 24));
     valid = true;
   }
 
@@ -131,7 +132,7 @@ static bool toyota_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
   int addr = GET_ADDR(to_fwd);
   if ((addr == 0x2E4) || (addr == 0x191)) {
     // only mod stock LKA/LTA while using CoPilot or during emergency takeover
-    valid = (controls_allowed & merlin_enable) | emergency_takeover;
+    valid = true; //(controls_allowed & merlin_enable) | emergency_takeover;
   }
   if (addr == 0x343) {
     // we only want this if using CoPilot
