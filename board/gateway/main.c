@@ -256,6 +256,8 @@ bool acc_cancel = 0;
 #define DSU_AEB_CMD 0x344
 bool stock_aeb_active = 0;
 
+#define ACC_HUD 0x411
+
 void CAN1_RX0_IRQ_Handler(void) {
   while ((CAN1->RF0R & CAN_RF0R_FMP0) != 0) {
 
@@ -493,6 +495,11 @@ void CAN3_RX0_IRQ_Handler(void) {
           #endif
         }
         break;
+      case ACC_HUD:
+        // block this while ACC enabled
+        if (enable_acc & !stock_aeb_active){
+          to_fwd.RIR &= 0xFFFFFFFE; // do not fwd
+        }
       default:
         // FWD as-is
         break;
@@ -549,6 +556,7 @@ void TIM3_IRQ_Handler(void) {
   if (timeout_f10 == MAX_TIMEOUT2){
     enable_acc = 0;
     ctrl_mode &= 0xFE; // clear ACC ctrl mode bit
+    acc_cmd = 0;
     puts("F10 TIMEOUT");
   } else {
     timeout_f10 += 1U;
@@ -556,10 +564,12 @@ void TIM3_IRQ_Handler(void) {
   if (timeout_f11 == MAX_TIMEOUT2){
     enable_aeb_control = 0;
     ctrl_mode &= 0xFD; // clear AEB ctrl mode bit
+    aeb_cmd = 0;
     puts("F11 TIMEOUT");
   } else {
     timeout_f11 += 1U;
   }
+
   TIM3->SR = 0;
 
 #ifdef DEBUG_CTRL

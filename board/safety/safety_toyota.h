@@ -17,8 +17,8 @@ CanMsgFwd  TSS2_FWD_MSG[] = {
     {.msg = {0x343,2,8},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // ACC_CONTROL - Long Control - 100Hz
     {.msg = {0x344,2,8},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // ACC1F01 - AEB Braking - 50Hz
     {.msg = {0x191,2,8},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LTA_STEERING - Lat Control - 100Hz
-    {.msg = {0x411,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // ACC_HUD - no counter
-    {.msg = {0x412,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKAS_HUD - no counter
+    {.msg = {0x411,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // ACC_HUD - no counter
+    {.msg = {0x412,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKAS_HUD - no counter
   };
 
 // TSS1 long control happens at Pedal / DSU
@@ -26,7 +26,7 @@ CanMsgFwd  TSS2_FWD_MSG[] = {
 CanMsgFwd  TSS1_FWD_MSG[] = {
     //used for control
     {.msg = {0x2e4,2,5},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKA_STEERING - Lat Control - 100Hz
-    {.msg = {0x412,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKAS_HUD - no counter
+    {.msg = {0x412,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKAS_HUD - no counter
   };
 
 // global torque limit
@@ -122,10 +122,7 @@ static bool toyota_compute_fwd_checksum(CAN_FIFOMailBox_TypeDef *to_fwd) {
     valid = true;
   }
   // no checksums on the HUD messages
-  if (addr == 0x411) {
-    valid = true;
-  }
-  if (addr == 0x412) {
+  if ((addr == 0x411) | (addr == 0x412)) {
     valid = true;
   }
   return valid;
@@ -151,12 +148,10 @@ static bool toyota_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
     valid = !stock_aeb & emergency_takeover;
   }
   // passthru HUD when not engaged
-  if (addr == 0x411) {
+  if ((addr == 0x411) || (addr == 0x412)) {
     valid = (controls_allowed | emergency_takeover | !stock_lka);
   }
-  if (addr == 0x412) {
-    valid = (controls_allowed | emergency_takeover | !stock_lka);
-  }
+
   return valid;
 }
 
@@ -298,7 +293,7 @@ static int toyota_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
 
     // GAS PEDAL: safety check
     if (addr == 0x200) {
-      if (!controls_allowed | !emergency_takeover) {
+      if (!controls_allowed & !emergency_takeover) {
         if (GET_BYTE(to_send, 0) || GET_BYTE(to_send, 1)) {
           tx = 0;
         }
