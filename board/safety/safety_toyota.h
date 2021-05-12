@@ -6,7 +6,8 @@ bool emergency_takeover = false;
 // flags for TSS2 or stock messages
 bool is_tss2 = false;
 bool stock_aeb = false;
-bool stock_lka = false;
+
+// issues: steering at stock frequency is not enough for certain scenarios. spamming at 100Hz seems to increase the available torque
 
 // TSS2 long control happens at the FCAM
 // Pedal can be used with AEB for long control outside of ACC
@@ -133,11 +134,11 @@ static bool toyota_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
   int addr = GET_ADDR(to_fwd);
   if (addr == 0x2E4) {
     // only mod stock LKA/LTA while using CoPilot or during emergency takeover
-    valid = (controls_allowed | emergency_takeover | !stock_lka);
+    valid = controls_allowed | emergency_takeover;
   }
     if (addr == 0x191) {
     // only mod stock LKA/LTA while using CoPilot or during emergency takeover
-    valid = (controls_allowed | emergency_takeover | !stock_lka);
+    valid = controls_allowed | emergency_takeover;
   }
   if (addr == 0x343) {
     // we only want this if using CoPilot
@@ -149,7 +150,7 @@ static bool toyota_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
   }
   // passthru HUD when not engaged
   if ((addr == 0x411) || (addr == 0x412)) {
-    valid = (controls_allowed | emergency_takeover | !stock_lka);
+    valid = controls_allowed | emergency_takeover;
   }
 
   return valid;
@@ -232,16 +233,6 @@ static int toyota_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
   if (GET_BUS(to_push) == 2){
     int addr = GET_ADDR(to_push);
 
-    if (addr == 0x2E4){
-      // check for stock LKA
-      int stock_lka_torque = (GET_BYTE(to_push, 1) << 8) | GET_BYTE(to_push, 2);
-      stock_lka_torque = to_signed(stock_lka_torque, 16);
-      if (stock_lka_torque != 0){
-        stock_lka = 1;
-      } else {
-        stock_lka = 0;
-      }
-    }
     if (addr == 0x344){
       // check for stock AEB
       int stock_aeb_force = (GET_BYTE(to_push, 1) << 2) | (GET_BYTE(to_push, 2) & 0x3U);
