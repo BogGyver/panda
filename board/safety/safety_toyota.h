@@ -185,7 +185,7 @@ static int toyota_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
     if (addr == 0x1D2) {
       // 5th bit is CRUISE_ACTIVE
       int cruise_engaged = GET_BYTE(to_push, 0) & 0x20;
-      if (!cruise_engaged) {
+      if (!cruise_engaged && !emergency_takeover) {
         controls_allowed = 0;
       }
       if (cruise_engaged && !cruise_engaged_prev) {
@@ -272,6 +272,7 @@ static int toyota_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
     if (((addr == 0x344) & is_tss2) | (addr == 0xF2)){
       // only check 0x344 if TSS2. TSS1 will use 0xF2 with AEB gateway
       emergency_takeover = 1;
+      controls_allowed = 1;
       aeb_tim = TIM2->CNT;
     }
     // disable emergency takeover if AEB has not been sent in 250ms

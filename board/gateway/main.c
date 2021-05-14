@@ -475,7 +475,7 @@ void CAN3_RX0_IRQ_Handler(void) {
             // modify this message before sending to the car only if requested and stock AEB is NOT active
             dat[0] = (aeb_cmd >> 2U); // 10 bit msg
             dat[1] = (((aeb_cmd << 8U) & 3U) << 6U) | (2 << 3U) | (2 << 0U);
-            dat[4] |= (1U << 6U); // BRKHLD
+            dat[4] |= (1U << 5U); // BRKHLD
             dat[7] = toyota_checksum(address, dat, 8);
           }
           to_fwd.RDLR = dat[0] | (dat[1] << 8) | (dat[2] << 16) | (dat[3] << 24);
