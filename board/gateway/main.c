@@ -246,6 +246,11 @@ bool release_standstill = 0;
 
 #define AEB_CTRL 0xF2
 bool enable_aeb_control = 0;
+uint8_t ds1stbk2 = 0;
+uint8_t ds1stat2 = 0;
+bool pcsopr = 0;
+bool pptrgr = 0;
+bool brkhld = 0;
 int aeb_cmd = 0;
 
 //------------- BUS 2 - DSU -------------//
@@ -336,7 +341,12 @@ void CAN1_RX0_IRQ_Handler(void) {
         if (dat[7] == toyota_checksum(address, dat, 8)){
           // an emergency maneuver is being requested
           enable_aeb_control = 1;
-          aeb_cmd = (dat[0] << 2U) | (dat[1] & 3U);
+          aeb_cmd = (dat[0] << 2) | (dat[1] & 3U);
+          ds1stat2 = (dat[1] >> 3) & 7U;
+          ds1stbk2 = (dat[1] & 7U);
+          pcsopr = (dat[2] & 1U);
+          pptrgr = (dat[3] >> 4) & 1U;
+          brkhld = (dat[4] >> 5) & 1U; 
           // reset the timer
           timeout_f11 = 0;
           ctrl_mode = MODE_AEB_CTRL; // set AEB_CTRL mode bit
@@ -474,8 +484,9 @@ void CAN3_RX0_IRQ_Handler(void) {
           if (enable_aeb_control & !stock_aeb_active){ 
             // modify this message before sending to the car only if requested and stock AEB is NOT active
             dat[0] = (aeb_cmd >> 2U); // 10 bit msg
-            dat[1] = (((aeb_cmd << 8U) & 3U) << 6U) | (2 << 3U) | (2 << 0U);
-            dat[4] |= (1U << 5U); // BRKHLD
+            dat[1] = (((aeb_cmd << 8U) & 3U) << 6U) | ((ds1stat2 & 7U) << 3U) | ((ds1stbk2 & 7U) << 0U);
+            dat[3] |= (pptrgr << 4U); // PPTRGR
+            dat[4] |= (brkhld << 5U); // BRKHLD
             dat[7] = toyota_checksum(address, dat, 8);
           }
           to_fwd.RDLR = dat[0] | (dat[1] << 8) | (dat[2] << 16) | (dat[3] << 24);
@@ -495,11 +506,6 @@ void CAN3_RX0_IRQ_Handler(void) {
           #endif
         }
         break;
-      case ACC_HUD:
-        // block this while ACC enabled
-        if (enable_acc & !stock_aeb_active){
-          to_fwd.RIR &= 0xFFFFFFFE; // do not fwd
-        }
       default:
         // FWD as-is
         break;
