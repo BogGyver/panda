@@ -58,7 +58,21 @@ def to_c_uint32(x):
     x //= (2**32)
   return "{" + 'U,'.join(map(str, nums)) + "U}"
 
-
+# Workaround for the fact that pow() can't do mod inverses in python < v3.8
+def egcd(a, b):
+  if a == 0:
+    return (b, 0, 1)
+  else:
+    g, y, x = egcd(b % a, a)
+    return (g, x - (b // a) * y, y)
+  
+def modinv(a, m):
+  g, x, y = egcd(a, m)
+  if g != 1:
+    raise Exception('modular inverse does not exist')
+  else:
+    return x % m
+  
 def get_key_header(name):
   from Crypto.PublicKey import RSA
 
@@ -67,7 +81,7 @@ def get_key_header(name):
   assert(rsa.size_in_bits() == 1024)
 
   rr = pow(2**1024, 2, rsa.n)
-  n0inv = 2**32 - pow(rsa.n, -1, 2**32)
+  n0inv = 2**32 - modinv(rsa.n, 2**32)
 
   r = [
     f"RSAPublicKey {name}_rsa_key = {{",
