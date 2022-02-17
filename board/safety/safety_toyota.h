@@ -1,15 +1,13 @@
 // #include "safety_forwards.h"
 
-// flag for switching between TSS and Merlin Autonomy on the fly
-bool merlin_enable = true;
-
 // flag for emergency maneuvers
 bool emergency_takeover = false;
 
 // flags for TSS2 or stock messages
 bool is_tss2 = false;
 bool stock_aeb = false;
-bool stock_lka = false;
+
+// issues: steering at stock frequency is not enough for certain scenarios. spamming at 100Hz seems to increase the available torque
 
 // TSS2 long control happens at the FCAM
 // Pedal can be used with AEB for long control outside of ACC
@@ -20,7 +18,8 @@ CanMsgFwd  TSS2_FWD_MSG[] = {
     {.msg = {0x343,2,8},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // ACC_CONTROL - Long Control - 100Hz
     {.msg = {0x344,2,8},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // ACC1F01 - AEB Braking - 50Hz
     {.msg = {0x191,2,8},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LTA_STEERING - Lat Control - 100Hz
-    {.msg = {0x412,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKAS_HUD - no counter
+    {.msg = {0x411,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // ACC_HUD - no counter
+    {.msg = {0x412,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKAS_HUD - no counter
   };
 
 // TSS1 long control happens at Pedal / DSU
@@ -28,7 +27,7 @@ CanMsgFwd  TSS2_FWD_MSG[] = {
 CanMsgFwd  TSS1_FWD_MSG[] = {
     //used for control
     {.msg = {0x2e4,2,5},.fwd_to_bus=0,.expected_timestep = 20000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKA_STEERING - Lat Control - 100Hz
-    {.msg = {0x412,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKAS_HUD - no counter
+    {.msg = {0x412,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // LKAS_HUD - no counter
   };
 
 // global torque limit
@@ -123,25 +122,37 @@ static bool toyota_compute_fwd_checksum(CAN_FIFOMailBox_TypeDef *to_fwd) {
     to_fwd->RDHR = ((to_fwd->RDHR & 0x00FFFFFF) | (checksum << 24));
     valid = true;
   }
-
+  // no checksums on the HUD messages
+  if ((addr == 0x411) | (addr == 0x412)) {
+    valid = true;
+  }
   return valid;
 }
 // is the msg to be modded?
 static bool toyota_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
   bool valid = false;
   int addr = GET_ADDR(to_fwd);
-  if ((addr == 0x2E4) || (addr == 0x191)) {
+  if (addr == 0x2E4) {
     // only mod stock LKA/LTA while using CoPilot or during emergency takeover
-    valid = true; //(controls_allowed & merlin_enable) | emergency_takeover;
+    valid = controls_allowed | emergency_takeover;
+  }
+    if (addr == 0x191) {
+    // only mod stock LKA/LTA while using CoPilot or during emergency takeover
+    valid = controls_allowed | emergency_takeover;
   }
   if (addr == 0x343) {
     // we only want this if using CoPilot
-    valid = (controls_allowed & merlin_enable);
+    valid = controls_allowed;
   }
   if (addr == 0x344) {
     // always passthru stock AEB if requested. only send this when doing emergency takeover! otherwise, use 343 for long control.
     valid = !stock_aeb & emergency_takeover;
   }
+  // passthru HUD when not engaged
+  if ((addr == 0x411) || (addr == 0x412)) {
+    valid = controls_allowed | emergency_takeover;
+  }
+
   return valid;
 }
 
@@ -174,7 +185,7 @@ static int toyota_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
     if (addr == 0x1D2) {
       // 5th bit is CRUISE_ACTIVE
       int cruise_engaged = GET_BYTE(to_push, 0) & 0x20;
-      if (!cruise_engaged) {
+      if (!cruise_engaged && !emergency_takeover) {
         controls_allowed = 0;
       }
       if (cruise_engaged && !cruise_engaged_prev) {
@@ -222,15 +233,15 @@ static int toyota_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
   if (GET_BUS(to_push) == 2){
     int addr = GET_ADDR(to_push);
 
-    // TODO: find the bits to change these flags!
-    if (addr == 0x2E4){
-      // check that LKA bit for merlin_enable
-      stock_lka = true;
-      merlin_enable = true;
-    }
     if (addr == 0x344){
       // check for stock AEB
-      stock_aeb = true;
+      int stock_aeb_force = (GET_BYTE(to_push, 1) << 2) | (GET_BYTE(to_push, 2) & 0x3U);
+      stock_aeb_force = to_signed(stock_aeb_force, 10);
+      if (stock_aeb_force != 0){
+        stock_aeb = 1;
+      } else {
+        stock_aeb = 0;
+      }
     }
   }
 
@@ -258,8 +269,10 @@ static int toyota_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
   if (bus == 0) {
 
     // AEB takeover. Disables gas pedal when sent, so cannot be disabled until maneuver finished
-    if (addr == 0x344) {
+    if (((addr == 0x344) & is_tss2) | (addr == 0xF2)){
+      // only check 0x344 if TSS2. TSS1 will use 0xF2 with AEB gateway
       emergency_takeover = 1;
+      controls_allowed = 1;
       aeb_tim = TIM2->CNT;
     }
     // disable emergency takeover if AEB has not been sent in 250ms
@@ -272,7 +285,7 @@ static int toyota_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
 
     // GAS PEDAL: safety check
     if (addr == 0x200) {
-      if (!controls_allowed) {
+      if (!controls_allowed & !emergency_takeover) {
         if (GET_BYTE(to_send, 0) || GET_BYTE(to_send, 1)) {
           tx = 0;
         }
@@ -280,7 +293,7 @@ static int toyota_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
     }
 
     // ACCEL: safety check on byte 1-2
-    if (addr == 0x343) {
+    if ((addr == 0x343) | (addr == 0xF1)){
       int desired_accel = (GET_BYTE(to_send, 0) << 8) | GET_BYTE(to_send, 1);
       desired_accel = to_signed(desired_accel, 16);
       if (!controls_allowed) {
@@ -321,7 +334,7 @@ static int toyota_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
 
       uint32_t ts = TIM2->CNT;
 
-      if (controls_allowed) {
+      if (controls_allowed | emergency_takeover) {
 
         // *** global torque limit check ***
         violation |= max_limit_check(desired_torque, TOYOTA_MAX_TORQUE, -TOYOTA_MAX_TORQUE);
@@ -344,13 +357,13 @@ static int toyota_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
         }
       }
 
-      // no torque if controls is not allowed
-      if (!controls_allowed && (desired_torque != 0)) {
+      // no torque if controls is not allowed and no emergency takeover
+      if ((!controls_allowed & !emergency_takeover) && (desired_torque != 0)) {
         violation = 1;
       }
 
       // reset to 0 if either controls is not allowed or there's a violation
-      if (violation || !controls_allowed) {
+      if (violation || (!controls_allowed & !emergency_takeover)) {
         desired_torque_last = 0;
         rt_torque_last = 0;
         ts_last = ts;
@@ -390,12 +403,11 @@ static int toyota_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
   int addr = GET_ADDR(to_fwd);
   int fwd_modded = -2;
 
-  // do not forward the Pedal
-  if ((addr == 0x200) || (addr == 0x201)){
-    return -1;
-  }
-
   if (!relay_malfunction) {
+    // do not forward the Pedal
+    if ((addr == 0x200) || (addr == 0x201)){
+      bus_fwd = -1;
+    }
     if (bus_num == 0) {
       bus_fwd = 2;
     }

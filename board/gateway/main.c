@@ -215,8 +215,8 @@ void CAN3_TX_IRQ_Handler(void) {
 #define MAX_TIMEOUT 50U
 #define MAX_TIMEOUT2 200U
 uint32_t timeout = 0;
-uint32_t timeout_f10 = 0;
-uint32_t timeout_f11 = 0;
+uint32_t timeout_f1 = 0;
+uint32_t timeout_f2 = 0;
 
 #define NO_FAULT 0U
 #define FAULT_BAD_CHECKSUM 1U
@@ -246,7 +246,29 @@ bool release_standstill = 0;
 
 #define AEB_CTRL 0xF2
 bool enable_aeb_control = 0;
-int aeb_cmd = 0;
+
+int aeb_cmd = 0; // (dat0 << 2) | (dat1 >> 6);
+uint8_t ds1stbk2 = 0; //dat1 & 7U
+uint8_t ds1stat2 = 0; //(dat1 >> 3) & 7U
+bool pcsopr = 0; //dat2 & 1U
+bool pcsalm = 0; //(dat2 >> 1) & 1U
+bool pcswar = 0; //(dat2 >> 2) & 1U
+uint8_t irlt_req = 0; //dat3 & 3U
+bool clextrgr = 0; //(dat3 >> 2) & 1U
+bool ibtrgr = 0; //(dat3 >> 3) & 1U
+bool pptrgr = 0; //(dat3 >> 4) & 1U
+uint8_t PBATRGR = 0; //(dat3 >> 5) & 3U
+bool pcsabk = 0; //(dat3 >> 7) & 1U
+bool pbrtrgr = 0; //dat4 & 1U
+bool prefill = 0; //(dat4 >> 1) & 1U
+uint8_t VGRSTRGR = 0; //(dat4 >> 2) & 3U
+bool AVSTRGR = 0; //(dat4 >> 4) & 1U
+bool brkhld = 0; //(dat4 >> 5U) & 1U
+bool pbprepmp = 0; //dat5 & 1U
+bool pcsdis = 0; //(dat5 >> 3) & 1U
+
+#define PCS_CTRL 0xF3
+bool enable_pcs_ctrl = 0;
 
 //------------- BUS 2 - DSU -------------//
 
@@ -255,6 +277,25 @@ bool acc_cancel = 0;
 
 #define DSU_AEB_CMD 0x344
 bool stock_aeb_active = 0;
+
+#define ACC_HUD 0x411
+
+#define DSU_PRECOLLISION 0x283 // 7 bytes
+uint8_t pcs_counter = 0; // byte 0
+int16_t pcs_force = 0; // byte2 | byte3
+uint8_t DSS1STAT = 0; //(byte4 >> 2) &7U pcs status
+uint8_t DSS1STBK = 0; //byte4 >> 5 brake status
+bool pcs_active = 0; //(byte5 >> 1) & 1U
+// toyota dbc values that need to be understood
+uint8_t DSSFTRQD = 0; //byte1 & FU
+bool PBRTRGR2 = 0; //(byte1 >> 4) &1U
+bool DSSTPBZ = 0; //(byte1 >> 6U) &1U
+bool DSLCCW1 = 0; //(byte1 >> 7U) &1U
+bool PPTRGR2 = 0; //byte4 &1U
+bool DSBHOK = 0; //(byte4 >> 1U) &1U
+bool PCSABK2 = 0; //(byte5 >> 4) &1U
+bool IBTRGR2 = 0; //(byte5 >> 5) &1U
+uint8_t DSRBQH = 0; //(byte5 >> 6) &3U
 
 void CAN1_RX0_IRQ_Handler(void) {
   while ((CAN1->RF0R & CAN_RF0R_FMP0) != 0) {
@@ -303,7 +344,7 @@ void CAN1_RX0_IRQ_Handler(void) {
           acc_cancel = (dat[3] & 1U);
           release_standstill = (dat[3] >> 7U) & 1U;
           // reset the timer
-          timeout_f10 = 0;
+          timeout_f1 = 0;
           ctrl_mode = MODE_ACC_CTRL; // set ACC_CTRL mode bit
           #ifdef DEBUG_CTRL
             puts("GOT ACC_CTRL");
@@ -334,9 +375,29 @@ void CAN1_RX0_IRQ_Handler(void) {
         if (dat[7] == toyota_checksum(address, dat, 8)){
           // an emergency maneuver is being requested
           enable_aeb_control = 1;
-          aeb_cmd = (dat[0] << 2U) | (dat[1] & 3U);
+
+          // collect all the vairables
+          aeb_cmd = (dat[0] << 2) | ((dat[1] >> 6) & 3U);
+          ds1stat2 = (dat[1] >> 3) & 7U;
+          ds1stbk2 = (dat[1] & 7U);
+          pcsopr = (dat[2] & 1U);
+          pcsalm = (dat[2] >> 1) & 1U;
+          pcswar = (dat[2] >> 2) & 1U;
+          irlt_req = dat[3] & 3U;
+          clextrgr = (dat[3] >> 2) & 1U;
+          ibtrgr = (dat[3] >> 3) & 1U;
+          pptrgr = (dat[3] >> 4) & 1U;
+          PBATRGR = (dat[3] >> 5) & 3U;
+          pcsabk = (dat[3] >> 7) & 1U;
+          pbrtrgr = dat[4] & 1U;
+          prefill = (dat[4] >> 1) & 1U;
+          VGRSTRGR = (dat[4] >> 2) & 3U;
+          AVSTRGR = (dat[4] >> 4) & 1U;
+          brkhld = (dat[4] >> 5) & 1U; 
+          pbprepmp = dat[5] & 1U;
+          pcsdis = (dat[5] >> 3) & 1U;
           // reset the timer
-          timeout_f11 = 0;
+          timeout_f2 = 0;
           ctrl_mode = MODE_AEB_CTRL; // set AEB_CTRL mode bit
           state = STATE_AEB_CTRL;
           #ifdef DEBUG_CTRL
@@ -466,18 +527,20 @@ void CAN3_RX0_IRQ_Handler(void) {
         }
         uint16_t stock_aeb = ((dat[0] << 8U) | dat[1]) >> 6U;
         stock_aeb_active = (stock_aeb != 0);
-        //DS1STAT2 bit 10
-        //DS1STBK2 bit 13
+
         if(dat[7] == toyota_checksum(address, dat, 8)) {
           if (enable_aeb_control & !stock_aeb_active){ 
             // modify this message before sending to the car only if requested and stock AEB is NOT active
             dat[0] = (aeb_cmd >> 2U); // 10 bit msg
-            dat[1] = (((aeb_cmd << 8U) & 3U) << 6U) | (2 << 3U) | (2 << 0U);
-            dat[4] |= (1U << 6U); // BRKHLD
+            dat[1] = ((aeb_cmd & 3U) << 6U) | ((ds1stat2 & 7U) << 3U) | ((ds1stbk2 & 7U) << 0U);
+            dat[2] = (pcswar << 2) | (pcsalm << 1) | pcsopr;
+            dat[3] = (pcsabk << 7) | ((PBATRGR & 3U) << 5) | (pptrgr << 4U) | (ibtrgr << 3) | (clextrgr << 2) | (irlt_req & 3U); 
+            dat[4] = (brkhld << 5U) | (AVSTRGR << 4) | (VGRSTRGR << 2) | (prefill << 1U) | pbrtrgr;
             dat[7] = toyota_checksum(address, dat, 8);
+            
+            to_fwd.RDLR = dat[0] | (dat[1] << 8) | (dat[2] << 16) | (dat[3] << 24);
+            to_fwd.RDHR = dat[4] | (dat[5] << 8) | (dat[6] << 16) | (dat[7] << 24);
           }
-          to_fwd.RDLR = dat[0] | (dat[1] << 8) | (dat[2] << 16) | (dat[3] << 24);
-          to_fwd.RDHR = dat[4] | (dat[5] << 8) | (dat[6] << 16) | (dat[7] << 24);
         } else {
           // bad checksum
           state = FAULT_BAD_CHECKSUM;
@@ -492,6 +555,41 @@ void CAN3_RX0_IRQ_Handler(void) {
             puts("\n");
           #endif
         }
+        break;
+      case DSU_PRECOLLISION:
+        for (int i=0; i<8; i++) {
+          dat[i] = GET_BYTE(&CAN3->sFIFOMailBox[0], i);
+        }
+        // bool stock_pcs_active = ((dat[5] >> 1) & 1U);
+        // if (enable_aeb_control & !stock_pcs_active){ 
+
+        //   DSS1STAT = ds1stat2;
+        //   DSS1STBK = 0;
+        //   PPTRGR2 = 0;
+        //   PBRTRGR2 = 0;
+        //   PCSABK2 = 0;
+
+        //   pcs_force = -100;
+
+        //   //todo - check this
+        //   pcs_active = 0;
+
+        //   dat[0] = pcs_counter;
+        //   dat[1] = (DSLCCW1 << 7) | (DSSTPBZ << 6) | (PBRTRGR2 << 4) | (DSSFTRQD & 7U);
+        //   dat[2] = (pcs_force >> 8);
+        //   dat[3] = pcs_force & 0xFF;
+        //   dat[4] = (DSS1STBK << 5) | (DSS1STAT << 2) | (DSBHOK << 1) | PPTRGR2;
+        //   dat[5] = ((DSRBQH << 6) & 3U) | (IBTRGR2 << 5) | (PCSABK2 << 4) | (pcs_active << 1);
+        //   dat[6] = toyota_checksum(address, dat, 7);
+          
+        //   // load into the buffer
+        //   to_fwd.RDLR = dat[0] | (dat[1] << 8) | (dat[2] << 16) | (dat[3] << 24);
+        //   to_fwd.RDHR = dat[4] | (dat[5] << 8) | (dat[6] << 16) | (dat[7] << 24);
+
+        //   // increase the PCS counter
+        //   pcs_counter += 1;
+        //   pcs_counter &= 0xFF;
+        // }
         break;
       default:
         // FWD as-is
@@ -546,20 +644,26 @@ void TIM3_IRQ_Handler(void) {
   } else {
     timeout += 1U;
   }
-  if (timeout_f10 == MAX_TIMEOUT2){
+  if (timeout_f1 == MAX_TIMEOUT2){
     enable_acc = 0;
     ctrl_mode &= 0xFE; // clear ACC ctrl mode bit
-    puts("F10 TIMEOUT");
+    acc_cmd = 0;
+    puts("F1 TIMEOUT");
   } else {
-    timeout_f10 += 1U;
+    timeout_f1 += 1U;
   }
-  if (timeout_f11 == MAX_TIMEOUT2){
+  if (timeout_f2 == MAX_TIMEOUT2){
     enable_aeb_control = 0;
     ctrl_mode &= 0xFD; // clear AEB ctrl mode bit
-    puts("F11 TIMEOUT");
+    aeb_cmd = 0;
+    pcs_force = 0;
+    pcs_active = 0;
+    pcs_counter = 0;
+    puts("F2 TIMEOUT");
   } else {
-    timeout_f11 += 1U;
+    timeout_f2 += 1U;
   }
+
   TIM3->SR = 0;
 
 #ifdef DEBUG_CTRL
