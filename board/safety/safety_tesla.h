@@ -117,7 +117,7 @@ CanMsgFwd  TESLA_AP_FWD_MODDED[] = {
 
 //TESLA WITHOUT AUTOPILOT DEFS
 const CanMsg TESLA_PREAP_TX_MSGS[] = {
-    {0x488, 2, 4},  // DAS_steeringControl - Lat Control
+    {0x488, 0, 4},  // DAS_steeringControl - Lat Control
     {0x2B9, 0, 8},  // DAS_control - Long Control
     {0x209, 0, 8},  // DAS_longControl - Long Control
     {0x45,  0, 8},  // STW_ACTN_RQ - ACC Control
@@ -133,7 +133,7 @@ const CanMsg TESLA_PREAP_TX_MSGS[] = {
   };
 
 AddrCheckStruct  TESLA_PREAP_RX_CHECKS[] = {
-    {.msg = {{0x370, 2, 8, .expected_timestep = 40000U}}},   // EPAS_sysStatus (25Hz)
+    {.msg = {{0x370, 0, 8, .expected_timestep = 40000U}}},   // EPAS_sysStatus (25Hz)
     {.msg = {{0x108, 0, 8, .expected_timestep = 10000U}}},   // DI_torque1 (100Hz)
     {.msg = {{0x118, 0, 6, .expected_timestep = 10000U}}},   // DI_torque2 (100Hz)
     {.msg = {{0x155, 0, 8, .expected_timestep = 20000U}}},   // ESP_B (50Hz)
@@ -143,19 +143,19 @@ AddrCheckStruct  TESLA_PREAP_RX_CHECKS[] = {
   };
 
 CanMsgFwd TESLA_PREAP_FWD_MODDED[] = {
-    //used for control
-    {.msg = {0x3E9,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_bodyControls - Control Body - 2Hz
-    //used for IC integration
-    {.msg = {0x399,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_status - Status - 2Hz
-    {.msg = {0x389,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_status2 - Status - 2Hz
-    {.msg = {0x329,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix0 - Status - 1Hz - nocounter/nochecksum
-    {.msg = {0x369,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix1 - Status - 1Hz - nocounter/nochecksum
-    {.msg = {0x349,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix3 - Status - 1Hz - nocounter/nochecksum
-    {.msg = {0x3A9,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_telemetry - Lane Type - 10Hz - nocounter/nochecksum
-    {.msg = {0x3B1,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_telemetryFurniture - Lane Type - 25Hz - nocounter/nochecksum
-    {.msg = {0x309,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_object - Lead Car - 30Hz - nocounter/nochecksum
-    {.msg = {0x239,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0xF0000000,.counter_mask_L=0x00000000}, // DAS_lanes - Path/Lanes - 10Hz - nochecksum
-  }; 
+  //used for control
+  {.msg = {0x3E9,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_bodyControls - Control Body - 2Hz
+  //used for IC integration
+  {.msg = {0x399,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_status - Status - 2Hz
+  {.msg = {0x389,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_status2 - Status - 2Hz
+  {.msg = {0x329,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix0 - Status - 1Hz - nocounter/nochecksum
+  {.msg = {0x369,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix1 - Status - 1Hz - nocounter/nochecksum
+  {.msg = {0x349,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix3 - Status - 1Hz - nocounter/nochecksum
+  {.msg = {0x3A9,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_telemetry - Lane Type - 10Hz - nocounter/nochecksum
+  {.msg = {0x3B1,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_telemetryFurniture - Lane Type - 25Hz - nocounter/nochecksum
+  {.msg = {0x309,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_object - Lead Car - 30Hz - nocounter/nochecksum
+  {.msg = {0x239,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0xF0000000,.counter_mask_L=0x00000000}, // DAS_lanes - Path/Lanes - 10Hz - nochecksum
+}; 
 
 bool autopilot_enabled = false;
 bool eac_enabled = false;
@@ -242,6 +242,10 @@ static bool tesla_compute_fwd_checksum(CAN_FIFOMailBox_TypeDef *to_fwd) {
 static bool tesla_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
     bool valid = false;
     int addr = GET_ADDR(to_fwd);
+
+    if (!has_ap_hardware) {
+      return valid;
+    }
 
     if (addr == 0x488) {
       valid = !(autopilot_enabled || eac_enabled || autopark_enabled);
@@ -1074,29 +1078,14 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
         return -1;
       }
     } else {
-      //no AP hardware so we need to mod EPAS Controls
-      //there is no hurting in doing so because steering does not happen
-      //unless we send the steering control message
-      if (addr == 0x101)
-      {
-        to_fwd->RDLR = (to_fwd->RDLR & 0x0000FFFF) | 0x4000 | 0x1000; 
-        to_fwd->RDHR = 0x00;
-        // 0x4000: WITH_ANGLE, 0xC000: WITH_BOTH (angle and torque)
-        // 0x1000: enabled LDW for haptic
-        to_fwd->RDLR = (to_fwd->RDLR | (tesla_compute_checksum(to_fwd) << 16));
-      }
-
-      if (addr == 0x214) {
-        to_fwd->RDLR = (to_fwd->RDLR & 0x0000FFF8) | 0x01; 
-        to_fwd->RDHR = 0x00;
-        // 0x01 - EPB_ALLOW_EAC
-        to_fwd->RDLR = (to_fwd->RDLR | (tesla_compute_checksum(to_fwd) << 16));
-      }
+      //no AP hardware so nothing to forward
+      return -1;
     }
     bus_fwd = 2;
   }
 
   if(bus_num == 2) {
+    if (has_ap_hardware) {
       //we take care of what needs to be modded via fwd_modded method
       //so make sure anything else is sent from 2 to 0
 
@@ -1123,6 +1112,9 @@ static int tesla_fwd_hook(int bus_num, CAN_FIFOMailBox_TypeDef *to_fwd) {
           to_fwd->RDHR = (to_fwd->RDHR & 0x00000000);
         } 
       }
+    } else {
+      return -1;
+    }
       bus_fwd = 0;
   }
 
