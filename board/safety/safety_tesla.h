@@ -26,8 +26,10 @@ const uint16_t TESLA_HUD_INTEGRATION = 8;
 const uint16_t TESLA_BODY_CONTROLS = 16;
 const uint16_t TESLA_RADAR_EMULATION = 32;
 const uint16_t TESLA_ENABLE_HAO = 64;
+const uint16_t TESLA_HAS_IBOOSTER = 128;
 
 bool has_ap_hardware = false;
+bool has_ibooster = false;
 bool has_acc = false;
 bool has_op_long_control = false;
 bool has_hud_integration = false;
@@ -441,14 +443,12 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CAN_FIFOMailBox_Type
 
     return;
   }
-  /*
-  if ((addr == 0x148) && (DAS_noEpasHarness == 1)) 
+  if ((addr == 0x148) && (has_ibooster)) 
   {
     to_send.RIR = (0x1A9 << 21) + (addr_mask & (to_fwd->RIR | 1));
     can_send(&to_send, bus_num, true);
     return;
   }
-  */
   if (addr == 0x115 )
   {
     
@@ -459,16 +459,18 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CAN_FIFOMailBox_Type
     can_send(&to_send, bus_num, true);
 
     //we don't get 0x148 DI_espControl so send as 0x1A9 on CAN1 and also as 0x148 on CAN0
-    to_send.RDTR = (to_fwd->RDTR & 0xFFFFFFF0) | 0x05;
-    to_send.RIR = (0x148 << 21) + (addr_mask & (to_fwd->RIR | 1));
-    to_send.RDLR = 0x000C0000 | (counter << 28);
-    cksm = (0x38 + 0x0C + (counter << 4)) & 0xFF;
-    to_send.RDHR = cksm;
-    //can_send(&to_send, 0, true);
+    //TODOBB: check if true that it is sent when we have iBooster
+    if (!has_ibooster) {
+      to_send.RDTR = (to_fwd->RDTR & 0xFFFFFFF0) | 0x05;
+      to_send.RIR = (0x148 << 21) + (addr_mask & (to_fwd->RIR | 1));
+      to_send.RDLR = 0x000C0000 | (counter << 28);
+      cksm = (0x38 + 0x0C + (counter << 4)) & 0xFF;
+      to_send.RDHR = cksm;
+      //can_send(&to_send, 0, true);
 
-    to_send.RIR = (0x1A9 << 21) + (addr_mask & (to_fwd->RIR | 1));
-    can_send(&to_send, bus_num, true);
-
+      to_send.RIR = (0x1A9 << 21) + (addr_mask & (to_fwd->RIR | 1));
+      can_send(&to_send, bus_num, true);
+    }
     return;
   }
 
@@ -479,40 +481,38 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CAN_FIFOMailBox_Type
 
     return;
   }
-  /*
-  if ((addr == 0x175) && (DAS_noEpasHarness == 1)) 
+  if ((addr == 0x175) && (has_ibooster)) 
   {
     to_send.RIR = (0x169 << 21) + (addr_mask & (to_fwd->RIR | 1));
     can_send(&to_send, bus_num, true);
     return;
   }
-  */
   if (addr == 0x118 )
   {
     to_send.RIR = (0x119 << 21) + (addr_mask & (to_fwd->RIR | 1));
     can_send(&to_send, bus_num, true);
-
-    //we don't get 0x175 ESP_wheelSpeeds so send as 0x169 on CAN1 and also as 0x175 on CAN0
-    int counter = to_fwd->RDHR  & 0x0F;
-    to_send.RIR = (0x169 << 21) + (addr_mask & (to_fwd->RIR | 1));
-    to_send.RDTR = (to_fwd->RDTR & 0xFFFFFFF0) | 0x08;
-    int32_t speed_kph = (((0xFFF0000 & to_send.RDLR) >> 16) * 0.05 -25) * 1.609;
-    if (speed_kph < 0) {
-      speed_kph = 0;
+    if (!has_ibooster) {
+      //we don't get 0x175 ESP_wheelSpeeds so send as 0x169 on CAN1 and also as 0x175 on CAN0
+      int counter = to_fwd->RDHR  & 0x0F;
+      to_send.RIR = (0x169 << 21) + (addr_mask & (to_fwd->RIR | 1));
+      to_send.RDTR = (to_fwd->RDTR & 0xFFFFFFF0) | 0x08;
+      int32_t speed_kph = (((0xFFF0000 & to_send.RDLR) >> 16) * 0.05 -25) * 1.609;
+      if (speed_kph < 0) {
+        speed_kph = 0;
+      }
+      if (((0xFFF0000 & to_send.RDLR) >> 16) == 0xFFF) {
+        speed_kph = 0x1FFF; //0xFFF is signal not available for DI_Torque2 speed 0x118; should be SNA or 0x1FFF for 0x169
+      } else {
+        speed_kph = (int)(speed_kph/0.04) & 0x1FFF;
+      }
+      to_send.RDLR = (speed_kph | (speed_kph << 13) | (speed_kph << 26)) & 0xFFFFFFFF;
+      to_send.RDHR = ((speed_kph  >> 6) | (speed_kph << 7) | (counter << 20)) & 0x00FFFFFF;
+      int cksm = 0x76;
+      cksm = (cksm + (to_send.RDLR & 0xFF) + ((to_send.RDLR >> 8) & 0xFF) + ((to_send.RDLR >> 16) & 0xFF) + ((to_send.RDLR >> 24) & 0xFF)) & 0xFF;
+      cksm = (cksm + (to_send.RDHR & 0xFF) + ((to_send.RDHR >> 8) & 0xFF) + ((to_send.RDHR >> 16) & 0xFF) + ((to_send.RDHR >> 24) & 0xFF)) & 0xFF;
+      to_send.RDHR = to_send.RDHR | (cksm << 24);
+      can_send(&to_send, bus_num, true);
     }
-    if (((0xFFF0000 & to_send.RDLR) >> 16) == 0xFFF) {
-      speed_kph = 0x1FFF; //0xFFF is signal not available for DI_Torque2 speed 0x118; should be SNA or 0x1FFF for 0x169
-    } else {
-      speed_kph = (int)(speed_kph/0.04) & 0x1FFF;
-    }
-    to_send.RDLR = (speed_kph | (speed_kph << 13) | (speed_kph << 26)) & 0xFFFFFFFF;
-    to_send.RDHR = ((speed_kph  >> 6) | (speed_kph << 7) | (counter << 20)) & 0x00FFFFFF;
-    int cksm = 0x76;
-    cksm = (cksm + (to_send.RDLR & 0xFF) + ((to_send.RDLR >> 8) & 0xFF) + ((to_send.RDLR >> 16) & 0xFF) + ((to_send.RDLR >> 24) & 0xFF)) & 0xFF;
-    cksm = (cksm + (to_send.RDHR & 0xFF) + ((to_send.RDHR >> 8) & 0xFF) + ((to_send.RDHR >> 16) & 0xFF) + ((to_send.RDHR >> 24) & 0xFF)) & 0xFF;
-    to_send.RDHR = to_send.RDHR | (cksm << 24);
-    can_send(&to_send, bus_num, true);
-    
     return;
   }
   if (addr == 0x108 )
@@ -552,8 +552,6 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CAN_FIFOMailBox_Type
   }
   
 }
-
-
 
 static void teslaPreAp_generate_message(int id,uint32_t RIR, uint32_t RDTR) {
   int index = get_addr_index(id, 0, TESLA_PREAP_FWD_MODDED, sizeof(TESLA_PREAP_FWD_MODDED)/sizeof(TESLA_PREAP_FWD_MODDED[0]),true);
@@ -1134,6 +1132,7 @@ static void tesla_init(int16_t param) {
   };
   relay_malfunction_reset();
   has_ap_hardware = GET_FLAG(param, TESLA_HAS_AP_HARDWARE);
+  has_ibooster = GET_FLAG(param, TESLA_HAS_IBOOSTER);
   has_acc = GET_FLAG(param, TESLA_HAS_ACC);
   has_op_long_control = GET_FLAG(param, TESLA_OP_LONG_CONTROL);
   has_hud_integration = GET_FLAG(param, TESLA_HUD_INTEGRATION);
