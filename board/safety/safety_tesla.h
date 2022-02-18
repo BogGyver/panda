@@ -49,6 +49,7 @@ int DAS_bodyControls_idx = 0;
 int DAS_status_idx = 0;
 int DAS_status2_idx = 0;
 int DAS_lanes_idx = 0;
+int DAS_steeringControl_idx = 0;
 uint32_t DAS_lastStalkL = 0;
 uint32_t DAS_lastStalkH = 0;
 int EPB_epasControl_idx = 0;
@@ -146,6 +147,8 @@ AddrCheckStruct  TESLA_PREAP_RX_CHECKS[] = {
   };
 
 CanMsgFwd TESLA_PREAP_FWD_MODDED[] = {
+  //steering
+  {.msg = {0x488,2,4},.fwd_to_bus=0,.expected_timestep = 100000U,.counter_mask_H=0x00000000,.counter_mask_L=0x000F0000}, // DAS_steeringControl - Lat Control - 20Hz
   //used for control
   {.msg = {0x3E9,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_bodyControls - Control Body - 2Hz
   //used for IC integration
@@ -571,7 +574,11 @@ static void teslaPreAp_generate_message(int id,uint32_t RIR, uint32_t RDTR) {
   to_send.RDLR = TESLA_PREAP_FWD_MODDED[index].dataH;
   to_send.RDHR = TESLA_PREAP_FWD_MODDED[index].dataL;
   //these messages need counter added
-  //0x3E9 0x399 0x389 0x239
+  //0x3E9 0x399 0x389 0x239 0x488
+  if (id == 0x488) {
+    to_send.RDLR = to_send.RDLR | (DAS_steeringControl_idx << 16);
+    DAS_steeringControl_idx = (DAS_steeringControl_idx + 1) % 16;
+  }
   if (id == 0x3E9) {
     to_send.RDHR = to_send.RDHR | (DAS_bodyControls_idx << 20);
     DAS_bodyControls_idx = (DAS_bodyControls_idx + 1) % 16;
@@ -646,6 +653,8 @@ static void teslaPreAp_send_IC_messages(uint32_t RIR, uint32_t RDTR) {
   teslaPreAp_generate_message(0x239,RIR,RDTR);
   //EPB_epasControl 
   do_EPB_epasControl(RIR,RDTR);
+  //DAS_steeringControl
+  teslaPreAp_generate_message(0x488,RIR,RDTR);
   //generate everything at 2Hz
   if ((IC_send_counter == 1) || (IC_send_counter == 6)){
     //DAS_bodyControls
