@@ -163,7 +163,6 @@ bool autopilot_enabled = false;
 bool eac_enabled = false;
 bool autopark_enabled = false;
 bool epas_inhibited = false;
-bool has_0x214_message = false;
 
 static uint8_t tesla_compute_checksum(CAN_FIFOMailBox_TypeDef *to_push) {
   int addr = GET_ADDR(to_push);
@@ -605,7 +604,7 @@ static void send_fake_message(uint32_t RIR, uint32_t RDTR,int msg_len, int msg_a
 }
 
 static void do_EPB_epasControl(uint32_t RIR, uint32_t RDTR) {
-  if (has_0x214_message) {
+  if (has_ibooster) {
     return;
   }
   uint32_t MLB;
@@ -753,10 +752,6 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
           if(!cruise_engaged || epas_inhibited) {
             controls_allowed = 0;
           }
-        } else {
-          if (cruise_engaged && !epas_inhibited) {
-              controls_allowed = 1;
-          }
         }
         cruise_engaged_prev = cruise_engaged;
       }
@@ -790,20 +785,22 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
       }
  
       if (addr == 0x214) {
-        epas_inhibited = (to_push->RDLR & 0x07) == 0;
         //has ibooser or otherwise we don't get EPB_epasControl
-        has_0x214_message = true;
+        if (has_ap_hardware) {
+          epas_inhibited = (to_push->RDLR & 0x07) == 0;
+        }
+        has_ibooster = true;
       }
-    }
 
-    if (bus == 2) {
       if ((addr == 0x370) && (!has_ap_hardware)) {
         // Steering angle: (0.1 * val) - 819.2 in deg.
         // Store it 1/10 deg to match steering request
         int angle_meas_new = (((GET_BYTE(to_push, 4) & 0x3F) << 8) | GET_BYTE(to_push, 5)) - 8192;
         update_sample(&angle_meas, angle_meas_new);
       }
+    }
 
+    if (bus == 2) {
       if ((addr == 0x399) && (has_ap_hardware)) {
         // Autopilot status
         int autopilot_status = (GET_BYTE(to_push, 0) & 0xF);
