@@ -142,6 +142,7 @@ AddrCheckStruct  TESLA_PREAP_RX_CHECKS[] = {
     {.msg = {{0x20a, 0, 8, .expected_timestep = 20000U}}},   // BrakeMessage (50Hz)
     {.msg = {{0x368, 0, 8, .expected_timestep = 100000U}}},  // DI_state (10Hz)
     {.msg = {{0x318, 0, 8, .expected_timestep = 100000U}}},  // GTW_carState (10Hz)
+    {.msg = {{0x45, 0, 8, .expected_timestep = 100000U}}},  // STW_ACTN_RQ (10Hz)
   };
 
 CanMsgFwd TESLA_PREAP_FWD_MODDED[] = {
@@ -683,6 +684,7 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
   } else {
     valid = addr_safety_check(to_push, TESLA_PREAP_RX_CHECKS, sizeof(TESLA_PREAP_RX_CHECKS)/sizeof(TESLA_PREAP_RX_CHECKS[0]),
                                  NULL, NULL, NULL);
+    valid = true;
   }
 
   if(valid) {
