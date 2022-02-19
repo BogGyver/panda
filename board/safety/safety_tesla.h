@@ -133,6 +133,7 @@ const CanMsg TESLA_PREAP_TX_MSGS[] = {
     {0x329, 0, 8},  // DAS_warningMatrix0
     {0x369, 0, 8},  // DAS_warningMatrix1
     {0x349, 0, 8},  // DAS_warningMatrix3
+    {0x659, 0, 8},  // DAS_uds used for IC into TB 
   };
 
 AddrCheckStruct  TESLA_PREAP_RX_CHECKS[] = {
@@ -148,19 +149,19 @@ AddrCheckStruct  TESLA_PREAP_RX_CHECKS[] = {
 
 CanMsgFwd TESLA_PREAP_FWD_MODDED[] = {
   //steering
-  {.msg = {0x488,2,4},.fwd_to_bus=0,.expected_timestep = 100000U,.counter_mask_H=0x00000000,.counter_mask_L=0x000F0000}, // DAS_steeringControl - Lat Control - 20Hz
+  {.msg = {0x488,0,4},.fwd_to_bus=0,.expected_timestep = 100000U,.counter_mask_H=0x00000000,.counter_mask_L=0x000F0000}, // DAS_steeringControl - Lat Control - 20Hz
   //used for control
-  {.msg = {0x3E9,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_bodyControls - Control Body - 2Hz
+  {.msg = {0x3E9,0,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_bodyControls - Control Body - 2Hz
   //used for IC integration
-  {.msg = {0x399,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_status - Status - 2Hz
-  {.msg = {0x389,2,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_status2 - Status - 2Hz
-  {.msg = {0x329,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix0 - Status - 1Hz - nocounter/nochecksum
-  {.msg = {0x369,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix1 - Status - 1Hz - nocounter/nochecksum
-  {.msg = {0x349,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix3 - Status - 1Hz - nocounter/nochecksum
-  {.msg = {0x3A9,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_telemetry - Lane Type - 10Hz - nocounter/nochecksum
-  {.msg = {0x3B1,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_telemetryFurniture - Lane Type - 25Hz - nocounter/nochecksum
-  {.msg = {0x309,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_object - Lead Car - 30Hz - nocounter/nochecksum
-  {.msg = {0x239,2,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0xF0000000,.counter_mask_L=0x00000000}, // DAS_lanes - Path/Lanes - 10Hz - nochecksum
+  {.msg = {0x399,0,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_status - Status - 2Hz
+  {.msg = {0x389,0,8},.fwd_to_bus=0,.expected_timestep = 500000U,.counter_mask_H=0x00F00000,.counter_mask_L=0x00000000}, // DAS_status2 - Status - 2Hz
+  {.msg = {0x329,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix0 - Status - 1Hz - nocounter/nochecksum
+  {.msg = {0x369,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix1 - Status - 1Hz - nocounter/nochecksum
+  {.msg = {0x349,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_warningMatrix3 - Status - 1Hz - nocounter/nochecksum
+  {.msg = {0x3A9,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_telemetry - Lane Type - 10Hz - nocounter/nochecksum
+  {.msg = {0x3B1,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_telemetryFurniture - Lane Type - 25Hz - nocounter/nochecksum
+  {.msg = {0x309,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0x00000000,.counter_mask_L=0x00000000}, // DAS_object - Lead Car - 30Hz - nocounter/nochecksum
+  {.msg = {0x239,0,8},.fwd_to_bus=0,.expected_timestep = 1000000U,.counter_mask_H=0xF0000000,.counter_mask_L=0x00000000}, // DAS_lanes - Path/Lanes - 10Hz - nochecksum
 }; 
 
 bool autopilot_enabled = false;
@@ -216,7 +217,7 @@ static bool tesla_compute_fwd_checksum(CAN_FIFOMailBox_TypeDef *to_fwd) {
     int addr = GET_ADDR(to_fwd);
 
     if (addr == 0x488) {
-      to_fwd->RDLR = (to_fwd->RDLR | (checksum << 24));
+      to_fwd->RDLR = (to_fwd->RDLR | (checksum <<  24));
       valid = true;
     }
 
@@ -564,15 +565,15 @@ static void teslaPreAp_generate_message(int id,uint32_t RIR, uint32_t RDTR) {
   
   //is the data valid to process?
   if (!TESLA_PREAP_FWD_MODDED[index].is_valid) {
-    return;
+    //return;
   }
   //create message
   CAN_FIFOMailBox_TypeDef to_send;
   uint32_t addr_mask = 0x001FFFFF;
   to_send.RIR = (id << 21) + (addr_mask & (RIR | 1));
   to_send.RDTR = (RDTR & 0xFFFFFFF0) | TESLA_PREAP_FWD_MODDED[index].msg.len;
-  to_send.RDLR = TESLA_PREAP_FWD_MODDED[index].dataH;
-  to_send.RDHR = TESLA_PREAP_FWD_MODDED[index].dataL;
+  to_send.RDLR = TESLA_PREAP_FWD_MODDED[index].dataL;
+  to_send.RDHR = TESLA_PREAP_FWD_MODDED[index].dataH;
   //these messages need counter added
   //0x3E9 0x399 0x389 0x239 0x488
   if (id == 0x488) {
@@ -598,7 +599,7 @@ static void teslaPreAp_generate_message(int id,uint32_t RIR, uint32_t RDTR) {
   //now do the checksums
   tesla_compute_fwd_checksum(&to_send);
   //send message
-  can_send(&to_send, TESLA_PREAP_FWD_MODDED[index].fwd_to_bus, false);
+  can_send(&to_send, TESLA_PREAP_FWD_MODDED[index].fwd_to_bus, true);
 }
 
 static void send_fake_message(uint32_t RIR, uint32_t RDTR,int msg_len, int msg_addr, uint8_t bus_num, uint32_t data_lo, uint32_t data_hi) {
