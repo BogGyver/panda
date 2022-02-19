@@ -593,7 +593,7 @@ static void teslaPreAp_generate_message(int id,uint32_t RIR, uint32_t RDTR) {
     DAS_status2_idx = (DAS_status2_idx + 1) % 16;
   }
   if (id == 0x239) {
-    to_send.RDHR = to_send.RDHR | (DAS_lanes_idx << 20);
+    to_send.RDHR = to_send.RDHR | (DAS_lanes_idx << 28);
     DAS_lanes_idx = (DAS_lanes_idx + 1) % 16;
   }
   //now do the checksums
