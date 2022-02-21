@@ -134,6 +134,7 @@ const CanMsg TESLA_PREAP_TX_MSGS[] = {
     {0x369, 0, 8},  // DAS_warningMatrix1
     {0x349, 0, 8},  // DAS_warningMatrix3
     {0x659, 0, 8},  // DAS_uds used for IC into TB 
+    {0x214, 0, 3},  // EPB_epasControl 
   };
 
 AddrCheckStruct  TESLA_PREAP_RX_CHECKS[] = {
@@ -609,7 +610,7 @@ static void send_fake_message(uint32_t RIR, uint32_t RDTR,int msg_len, int msg_a
   to_send.RDTR = (RDTR & 0xFFFFFFF0) | msg_len;
   to_send.RDLR = data_lo;
   to_send.RDHR = data_hi;
-  can_send(&to_send, bus_num, false);
+  can_send(&to_send, bus_num, true);
 }
 
 static void do_EPB_epasControl(uint32_t RIR, uint32_t RDTR) {
