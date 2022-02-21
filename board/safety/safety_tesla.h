@@ -64,7 +64,7 @@ const uint32_t TESLA_RADAR_TIMEOUT = 10000000; // 10s second between real time c
 char radar_VIN[] = "                 "; //leave empty if your radar VIN matches the car VIN
 int tesla_radar_vin_complete = 0;
 uint8_t tesla_radar_can = 1;
-uint8_t tesla_epas_can = 2;
+uint8_t tesla_epas_can = 0;
 int tesla_radar_trigger_message_id = 0; //not used by tesla, to showcase for other cars
 int radarPosition = 0; //0 nosecone, 1 facelift
 int radarEpasType = 0; //0/1 bosch, 2-4 mando
@@ -621,7 +621,7 @@ static void do_EPB_epasControl(uint32_t RIR, uint32_t RDTR) {
   uint32_t MHB; 
   MLB = 0x01 + (EPB_epasControl_idx << 8) + ((0x17 + EPB_epasControl_idx) << 16); 
   MHB = 0x00;
-  send_fake_message(RIR,RDTR,3,0x214,2,MLB,MHB);
+  send_fake_message(RIR,RDTR,3,0x214,0,MLB,MHB);
   EPB_epasControl_idx++;
   EPB_epasControl_idx = EPB_epasControl_idx % 16;
 }
