@@ -802,7 +802,6 @@ static int tesla_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
         if (has_ap_hardware) {
           epas_inhibited = (to_push->RDLR & 0x07) == 0;
         }
-        has_ibooster = true;
       }
 
       if ((addr == 0x370) && (!has_ap_hardware)) {
