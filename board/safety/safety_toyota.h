@@ -97,27 +97,27 @@ static uint8_t toyota_get_checksum(CANPacket_t *to_push) {
 }
 
 // check whether we should recompute checksum
-static bool toyota_compute_fwd_checksum(CAN_FIFOMailBox_TypeDef *to_fwd) {
+static bool toyota_compute_fwd_checksum(CANPacket_t *to_fwd) {
   uint8_t checksum = toyota_compute_checksum(to_fwd); 
   bool valid = false;
   int addr = GET_ADDR(to_fwd);
   
   if (addr == 0x2E4){
     // 0x2E4 is only 5 bytes. send 
-    to_fwd->RDHR = ((to_fwd->RDHR & 0x00) | (checksum << 0));
+    WORD_TO_BYTE_ARRAY(&to_fwd->data[4],((GET_BYTES_48(to_fwd) & 0x00) | (checksum << 0)));
     valid = true;
   }
   // the other ctrl msgs are 8 bytes
   if (addr == 0x191){ 
-    to_fwd->RDHR = ((to_fwd->RDHR & 0x00FFFFFF) | (checksum << 24));
+    WORD_TO_BYTE_ARRAY(&to_fwd->data[4],((GET_BYTES_48(to_fwd) & 0x00FFFFFF) | (checksum << 24)));
     valid = true;
   }
   if (addr == 0x343){ 
-    to_fwd->RDHR = ((to_fwd->RDHR & 0x00FFFFFF) | (checksum << 24));
+    WORD_TO_BYTE_ARRAY(&to_fwd->data[4],((GET_BYTES_48(to_fwd) & 0x00FFFFFF) | (checksum << 24)));
     valid = true;
   }
   if (addr == 0x344){ 
-    to_fwd->RDHR = ((to_fwd->RDHR & 0x00FFFFFF) | (checksum << 24));
+    WORD_TO_BYTE_ARRAY(&to_fwd->data[4],((GET_BYTES_48(to_fwd) & 0x00FFFFFF) | (checksum << 24)));
     valid = true;
   }
   // no checksums on the HUD messages
@@ -127,7 +127,7 @@ static bool toyota_compute_fwd_checksum(CAN_FIFOMailBox_TypeDef *to_fwd) {
   return valid;
 }
 // is the msg to be modded?
-static bool toyota_compute_fwd_should_mod(CAN_FIFOMailBox_TypeDef *to_fwd) {
+static bool toyota_compute_fwd_should_mod(CANPacket_t *to_fwd) {
   bool valid = false;
   int addr = GET_ADDR(to_fwd);
   if (addr == 0x2E4) {
