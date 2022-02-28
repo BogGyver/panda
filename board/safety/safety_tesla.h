@@ -936,12 +936,6 @@ static int tesla_tx_hook(CANPacket_t *to_send) {
     }
   }
 
-  if(!msg_allowed(to_send,
-                  tesla_powertrain ? TESLA_PT_TX_MSGS : TESLA_AP_TX_MSGS,
-                  tesla_powertrain ? TESLA_PT_TX_LEN : TESLA_AP_TX_LEN)) {
-    tx = 0;
-  }
-
   if(relay_malfunction) {
     tx = 0;
   }
