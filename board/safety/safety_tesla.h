@@ -30,23 +30,17 @@ const float TESLA_MAX_ACCEL = 2.0;  // m/s^2
 const float TESLA_MIN_ACCEL = -3.5; // m/s^2
 
 //for safetyParam parsing
-const uint16_t TESLA_HAS_AP_HARDWARE = 1;
-const uint16_t TESLA_HAS_ACC = 2;
-const uint16_t TESLA_OP_LONG_CONTROL = 4;
-const uint16_t TESLA_HUD_INTEGRATION = 8;
-const uint16_t TESLA_BODY_CONTROLS = 16;
-const uint16_t TESLA_RADAR_EMULATION = 32;
-const uint16_t TESLA_ENABLE_HAO = 64;
-const uint16_t TESLA_HAS_IBOOSTER = 128;
-
-const int TESLA_FLAG_POWERTRAIN = 1;
-const int TESLA_FLAG_LONGITUDINAL_CONTROL = 2;
+const uint16_t FLAG_TESLA_POWERTRAIN = 1;
+const uint16_t FLAG_TESLA_LONG_CONTROL = 2;
+const uint16_t FLAG_TESLA_HAS_AP = 16;
+const uint16_t FLAG_TESLA_NEED_RADAR_EMULATION = 32;
+const uint16_t FLAG_TESLA_ENABLE_HAO = 64;
+const uint16_t FLAG_TESLA_HAS_IBOOSTER = 128;
 
 
 bool has_ap_hardware = false;
 bool has_ibooster = false;
 bool has_acc = false;
-bool has_op_long_control = false;
 bool has_hud_integration = false;
 bool has_body_controls = false;
 bool do_radar_emulation = false;
@@ -997,7 +991,7 @@ static int tesla_tx_hook(CANPacket_t *to_send) {
   }
 
   //do not allow long control if not enabled
-  if ((!has_op_long_control) && ((addr == 0x2B9) || (addr == 0x209))) {
+  if ((!tesla_longitudinal) && ((addr == 0x2B9) || (addr == 0x209))) {
     //{0x2B9, 0, 8},  // DAS_control - Long Control
     //{0x209, 0, 8},  // DAS_longControl - Long Control
     tx = 0;
@@ -1262,8 +1256,15 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
 }
 
 static const addr_checks* tesla_init(int16_t param) {
-  tesla_powertrain = GET_FLAG(param, TESLA_FLAG_POWERTRAIN);
-  tesla_longitudinal = GET_FLAG(param, TESLA_FLAG_LONGITUDINAL_CONTROL);
+  tesla_powertrain = GET_FLAG(param, FLAG_TESLA_POWERTRAIN);
+  tesla_longitudinal = GET_FLAG(param, FLAG_TESLA_LONG_CONTROL);
+  has_ap_hardware = GET_FLAG(param, FLAG_TESLA_HAS_AP);
+  has_ibooster = GET_FLAG(param, FLAG_TESLA_HAS_IBOOSTER) || GET_FLAG(param, FLAG_TESLA_HAS_AP);
+  has_acc = GET_FLAG(param, FLAG_TESLA_HAS_AP);
+  has_hud_integration = true;
+  has_body_controls = true;
+  do_radar_emulation = GET_FLAG(param, FLAG_TESLA_NEED_RADAR_EMULATION);
+  enable_hao = GET_FLAG(param, FLAG_TESLA_ENABLE_HAO);
   controls_allowed = 0;
   //init gmlan for giraffe control
   if ((hw_type == HW_TYPE_WHITE_PANDA) || (hw_type == HW_TYPE_WHITE_PANDA))
@@ -1271,14 +1272,7 @@ static const addr_checks* tesla_init(int16_t param) {
     gmlan_switch_init(1);
   };
   relay_malfunction_reset();
-  has_ap_hardware = GET_FLAG(param, TESLA_HAS_AP_HARDWARE);
-  has_ibooster = GET_FLAG(param, TESLA_HAS_IBOOSTER);
-  has_acc = GET_FLAG(param, TESLA_HAS_ACC);
-  has_op_long_control = GET_FLAG(param, TESLA_OP_LONG_CONTROL);
-  has_hud_integration = GET_FLAG(param, TESLA_HUD_INTEGRATION);
-  has_body_controls = GET_FLAG(param, TESLA_BODY_CONTROLS);
-  do_radar_emulation = GET_FLAG(param, TESLA_RADAR_EMULATION);
-  enable_hao = GET_FLAG(param, TESLA_ENABLE_HAO);
+  
 
   if (tesla_powertrain) {
       return &tesla_pt_rx_checks;
