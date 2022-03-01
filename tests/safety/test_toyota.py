@@ -7,11 +7,8 @@ from panda.tests.safety import libpandasafety_py
 import panda.tests.safety.common as common
 from panda.tests.safety.common import CANPackerPanda, make_msg, UNSAFE_MODE
 
-MAX_ACCEL = 1.5
-MIN_ACCEL = -3.0
-
-ISO_MAX_ACCEL = 2.0
-ISO_MIN_ACCEL = -3.5
+MAX_ACCEL = 2.0
+MIN_ACCEL = -3.5
 
 class TestToyotaSafety(common.PandaSafetyTest, common.InterceptorSafetyTest,
                        common.TorqueSteeringSafetyTest):
@@ -77,13 +74,26 @@ class TestToyotaSafety(common.PandaSafetyTest, common.InterceptorSafetyTest,
   # Toyota gas gains are the same
   def _interceptor_msg(self, gas, addr):
     to_send = make_msg(0, addr, 6)
-    to_send[0].RDLR = ((gas & 0xff) << 8) | ((gas & 0xff00) >> 8) | \
-                      ((gas & 0xff) << 24) | ((gas & 0xff00) << 8)
+    to_send[0].data[0] = (gas & 0xFF00) >> 8
+    to_send[0].data[1] = gas & 0xFF
+    to_send[0].data[2] = (gas & 0xFF00) >> 8
+    to_send[0].data[3] = gas & 0xFF
     return to_send
+
+  def test_block_aeb(self):
+    for controls_allowed in (True, False):
+      for bad in (True, False):
+        for _ in range(10):
+          self.safety.set_controls_allowed(controls_allowed)
+          dat = [random.randint(1, 255) for _ in range(7)]
+          if not bad:
+            dat = [0]*6 + dat[-1:]
+          msg = common.package_can_msg([0x283, 0, bytes(dat),  0])
+          self.assertEqual(not bad, self._tx(msg))
 
   def test_accel_actuation_limits(self):
     limits = ((MIN_ACCEL, MAX_ACCEL, UNSAFE_MODE.DEFAULT),
-              (ISO_MIN_ACCEL, ISO_MAX_ACCEL, UNSAFE_MODE.RAISE_LONGITUDINAL_LIMITS_TO_ISO_MAX))
+              (MIN_ACCEL, MAX_ACCEL, UNSAFE_MODE.RAISE_LONGITUDINAL_LIMITS_TO_ISO_MAX))
 
     for min_accel, max_accel, unsafe_mode in limits:
       for accel in np.arange(min_accel - 1, max_accel + 1, 0.1):
@@ -125,7 +135,10 @@ class TestToyotaSafety(common.PandaSafetyTest, common.InterceptorSafetyTest,
       if msg == "pcm":
         to_push = self._pcm_status_msg(True)
       self.assertTrue(self._rx(to_push))
-      to_push[0].RDHR = 0
+      to_push[0].data[4] = 0
+      to_push[0].data[5] = 0
+      to_push[0].data[6] = 0
+      to_push[0].data[7] = 0
       self.assertFalse(self._rx(to_push))
       self.assertFalse(self.safety.get_controls_allowed())
 

@@ -13,13 +13,13 @@ typedef struct {
   bool is_valid;                     //is the message valid ?
 } CanMsgFwd;
 
-bool fwd_check_valid(CAN_FIFOMailBox_TypeDef *to_push, 
+bool fwd_check_valid(CANPacket_t *to_push, 
                 uint32_t mask_H, uint32_t mask_L) {
     //we check for now only if the counter set in Comma2 is > 0
-    return (((uint32_t)((to_push->RDHR & mask_H) + (to_push->RDLR & mask_L)) > 0) || (mask_H + mask_L == 0));
+    return (((uint32_t)((GET_BYTES_48(to_push) & mask_H) + (GET_BYTES_04(to_push) & mask_L)) > 0) || (mask_H + mask_L == 0));
 }
 
-int get_fwd_addr_check_index(CAN_FIFOMailBox_TypeDef *to_fwd, 
+int get_fwd_addr_check_index(CANPacket_t *to_fwd, 
     CanMsgFwd addr_list[], const int len, bool is_data) {
   int bus = GET_BUS(to_fwd);
   int addr = GET_ADDR(to_fwd);
@@ -72,7 +72,7 @@ bool check_fwd_time_validity(CanMsgFwd addr_list[], int index) {
 
 //if message is to be forwarded not sent, process and return true
 //otherwise return false 
-bool fwd_data_message(CAN_FIFOMailBox_TypeDef *to_push,
+bool fwd_data_message(CANPacket_t *to_push,
                        CanMsgFwd *fwd_msg_def,
                        const int fwd_msg_def_len,
                        bool violation
@@ -85,8 +85,8 @@ bool fwd_data_message(CAN_FIFOMailBox_TypeDef *to_push,
     //update timestamp
     update_received_time(fwd_msg_def,index);
     if ((!violation) && fwd_check_valid(to_push,fwd_msg_def[index].counter_mask_H,fwd_msg_def[index].counter_mask_L)) {
-        fwd_msg_def[index].dataH = to_push->RDHR & (fwd_msg_def[index].counter_mask_H ^ 0xFFFFFFFF);
-        fwd_msg_def[index].dataL = to_push->RDLR & (fwd_msg_def[index].counter_mask_L ^ 0xFFFFFFFF);
+        fwd_msg_def[index].dataH = GET_BYTES_48(to_push) & (fwd_msg_def[index].counter_mask_H ^ 0xFFFFFFFF);
+        fwd_msg_def[index].dataL = GET_BYTES_04(to_push) & (fwd_msg_def[index].counter_mask_L ^ 0xFFFFFFFF);
         fwd_msg_def[index].is_valid = true; 
     } else {
         fwd_msg_def[index].dataH = 0;
@@ -101,11 +101,11 @@ bool fwd_data_message(CAN_FIFOMailBox_TypeDef *to_push,
 //if message not found return -2
 //otherwise return the values set to where to forward
 //only modify if timestamp and all other checks are valid
-int fwd_modded_message(CAN_FIFOMailBox_TypeDef *to_fwd,
+int fwd_modded_message(CANPacket_t *to_fwd,
                        CanMsgFwd *fwd_msg_def,
                        const int fwd_msg_def_len,
-                       bool (*compute_fwd_should_mod)(CAN_FIFOMailBox_TypeDef *to_fwd),
-                       bool (*compute_fwd_checksum)(CAN_FIFOMailBox_TypeDef *to_fwd)) {
+                       bool (*compute_fwd_should_mod)(CANPacket_t *to_fwd),
+                       bool (*compute_fwd_checksum)(CANPacket_t *to_fwd)) {
     int index = get_fwd_addr_check_index(to_fwd, fwd_msg_def, fwd_msg_def_len,false);
     if (index == -1) {
         return -2;
@@ -131,19 +131,19 @@ int fwd_modded_message(CAN_FIFOMailBox_TypeDef *to_fwd,
 
     //start preparing the message mod
     //save old data
-    uint32_t dataH = to_fwd->RDHR;
-    uint32_t dataL = to_fwd->RDLR;
+    uint32_t dataH = GET_BYTES_48(to_fwd);
+    uint32_t dataL = GET_BYTES_04(to_fwd);
 
     //transfer counter
-    to_fwd->RDHR = fwd_msg_def[index].dataH | (dataH & fwd_msg_def[index].counter_mask_H);
-    to_fwd->RDLR = fwd_msg_def[index].dataL | (dataL & fwd_msg_def[index].counter_mask_L);
-
+    WORD_TO_BYTE_ARRAY(&to_fwd->data[4],fwd_msg_def[index].dataH | (dataH & fwd_msg_def[index].counter_mask_H));
+    WORD_TO_BYTE_ARRAY(&to_fwd->data[0],fwd_msg_def[index].dataL | (dataL & fwd_msg_def[index].counter_mask_L));
+    
     //compute checksum
     if (compute_fwd_checksum != NULL) {
         if (!compute_fwd_checksum(to_fwd)) {
             //checksum function failed, revert
-            to_fwd->RDHR = dataH;
-            to_fwd->RDLR = dataL;
+            WORD_TO_BYTE_ARRAY(&to_fwd->data[0], dataL);
+            WORD_TO_BYTE_ARRAY(&to_fwd->data[4], dataH);
         }
     }
 
