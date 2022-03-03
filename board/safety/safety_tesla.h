@@ -32,6 +32,7 @@ const float TESLA_MIN_ACCEL = -3.5; // m/s^2
 //for safetyParam parsing
 const uint16_t FLAG_TESLA_POWERTRAIN = 1;
 const uint16_t FLAG_TESLA_LONG_CONTROL = 2;
+const uint16_t FLAG_TESLA_HAS_IC_INTEGRATION = 8;
 const uint16_t FLAG_TESLA_HAS_AP = 16;
 const uint16_t FLAG_TESLA_NEED_RADAR_EMULATION = 32;
 const uint16_t FLAG_TESLA_ENABLE_HAO = 64;
@@ -1255,7 +1256,7 @@ static const addr_checks* tesla_init(int16_t param) {
   has_ap_hardware = GET_FLAG(param, FLAG_TESLA_HAS_AP);
   has_ibooster = GET_FLAG(param, FLAG_TESLA_HAS_IBOOSTER) || GET_FLAG(param, FLAG_TESLA_HAS_AP);
   has_acc = GET_FLAG(param, FLAG_TESLA_HAS_AP);
-  has_hud_integration = true;
+  has_hud_integration = GET_FLAG(param,FLAG_TESLA_HAS_IC_INTEGRATION);
   has_body_controls = true;
   do_radar_emulation = GET_FLAG(param, FLAG_TESLA_NEED_RADAR_EMULATION);
   enable_hao = GET_FLAG(param, FLAG_TESLA_ENABLE_HAO);
