@@ -2,4 +2,4 @@
 tmux kill-session -t comma
 cd /data/openpilot/panda/board
 cp /data/openpilot/selfdrive/ui/qt/flasher ./flasher
-exec ./flasher "Flash" flash.sh "Recover" recover.sh info.sh
+exec ./flasher "Flash" recover.sh "-" flash.sh info.sh
