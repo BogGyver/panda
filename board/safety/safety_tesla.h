@@ -165,6 +165,20 @@ const CanMsg TESLA_PREAP_TX_MSGS[] = {
     {0x349, 0, 8},  // DAS_warningMatrix3
     {0x659, 0, 8},  // DAS_uds used for IC into TB 
     {0x214, 0, 3},  // EPB_epasControl 
+    //used for radar integration
+    {0x109, 1, 8},  //DI_torque1
+    {0x119, 1, 6},  //DI_torque2
+    {0x129, 1, 6},  //ESP_115h
+    {0x149, 1, 8},  //ESP_145h
+    {0x159, 1, 8},  //ESP_C
+    {0x169, 1, 8},  //ESP_wheelSpeed
+    {0x199, 1, 8},  //STW_ANGLHP_STAT
+    {0x209, 1, 8},  //GTW_odo
+    {0x219, 1, 8},  //STW_ACTN_RQ
+    {0x1A9, 1, 5},  //DI_espControl
+    {0x2A9, 1, 8},  //GTW_carConfig
+    {0x2B9, 1, 8},  //VIP_405HS
+    {0x2D9, 1, 8},  //BC_status
   };
 #define TESLA_PREAP_TX_LEN (sizeof(TESLA_PREAP_TX_MSGS) / sizeof(TESLA_PREAP_TX_MSGS[0]))
 
@@ -438,13 +452,11 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     //SG_ GTW_dasHw : 7|2@0+ (1,0) [0|0] ""  NEO
     //SG_ GTW_parkAssistInstalled : 11|2@0+ (1,0) [0|0] ""  NEO
 
-    RDHR = RDHR | 0x100; //TODO if this is Park Assist, it should be RDLR not RDHR
-    
-    
     RDLR = RDLR & 0xFFFFF33F;
-    RDLR = RDLR | 0x440;
+    RDLR = RDLR | 0x100; //Park Assist
+    RDLR = RDLR | 0x440; //forwardRadarHw, dasHw
     // change the autopilot to 1
-    RDHR = RDHR & 0xCFFF0F0F;
+    RDHR = RDHR & 0xCFFF0F0F; //take out values for autopilot, radarPosition and epasType
     RDHR = RDHR | 0x10000000 | (radarPosition << 4) | (radarEpasType << 12);
     
     if ((sizeof(radar_VIN) >= 4) && (((int)(radar_VIN[7]) == 0x32) || ((int)(radar_VIN[7]) == 0x34))) {
@@ -488,7 +500,6 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
     WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
-
     return;
   }
   if ((addr == 0x148) && (has_ibooster)) 
