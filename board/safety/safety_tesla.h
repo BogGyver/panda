@@ -515,6 +515,8 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     can_send(&to_send, bus_num, true);
 
     //we don't get 0x148 DI_espControl so send as 0x1A9 on CAN1 and also as 0x148 on CAN0
+    to_send.returned = 0U;
+    to_send.rejected = 0U;
     to_send.data_len_code = len_to_dlc(0x05);
     int counter = ((RDHR & 0xF0) >> 4 ) & 0x0F;
     RDLR = 0x000C0000 | (counter << 28);
@@ -530,7 +532,7 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
 
   if (addr == 0x145) 
   {
-    to_send.addr = (0x149 );
+    to_send.addr = (0x149);
     WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
     WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
@@ -546,6 +548,8 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     //we don't get 0x175 ESP_wheelSpeeds so send as 0x169 on CAN1 and also as 0x175 on CAN0
     int counter = GET_BYTES_48(to_fwd)  & 0x0F;
     to_send.addr = (0x169 );
+    to_send.returned = 0U;
+    to_send.rejected = 0U;
     to_send.data_len_code = len_to_dlc(0x08);
     int32_t speed_kph = (((0xFFF0000 & RDLR) >> 16) * 0.05 -25) * 1.609;
     if (speed_kph < 0) {
@@ -1195,7 +1199,7 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
     //check all messages we need to also send to radar, moddified, after we receive 0x631 from radar
     //148 does not exist, we use 115 at the same frequency to trigger and pass static vals
     //175 does not exist, we use 118 at the same frequency to trigger and pass vehicle speed
-    if ((tesla_radar_status > 0 ) && ((addr == 0x20A ) || (addr == 0x118 ) || (addr == 0x108 ) ||  
+    if ((tesla_radar_status >= 0 ) && ((addr == 0x20A ) || (addr == 0x118 ) || (addr == 0x108 ) ||  
     (addr == 0x115 ) ||  (addr == 0x145)))
     {
       teslaPreAp_fwd_to_radar_modded(tesla_radar_can, to_fwd);
