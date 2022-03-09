@@ -1191,7 +1191,7 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
   }
 
   //radar emulation triggers
-  if ((!has_ap_hardware) && (do_radar_emulation)) {
+  if ((!has_ap_hardware) && (do_radar_emulation) && (bus_num == 0)) {
     //check all messages we need to also send to radar, moddified, after we receive 0x631 from radar
     //148 does not exist, we use 115 at the same frequency to trigger and pass static vals
     //175 does not exist, we use 118 at the same frequency to trigger and pass vehicle speed
