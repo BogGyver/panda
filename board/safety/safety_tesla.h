@@ -913,6 +913,22 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
       }
     }
 
+    if ((addr == 0x300) && (bus == tesla_radar_can)) 
+    {
+      uint32_t ts = TIM2->CNT;
+      uint32_t ts_elapsed = get_ts_elapsed(ts, tesla_last_radar_signal);
+      if (tesla_radar_status == 1) {
+        tesla_radar_status = 2;
+        tesla_last_radar_signal = ts;
+      } else
+      if ((ts_elapsed > TESLA_RADAR_TIMEOUT) && (tesla_radar_status > 0)) {
+        tesla_radar_status = 0;
+      } else 
+      if ((ts_elapsed <= TESLA_RADAR_TIMEOUT) && (tesla_radar_status == 2)) {
+        tesla_last_radar_signal = ts;
+      }
+    }
+
     if ((addr == 0x552) && ((bus == 2) || (bus == 0))) {
       pedalPressed = (int)((((GET_BYTES_04(to_push) & 0xFF00) >> 8) + ((GET_BYTES_04(to_push) & 0xFF) << 8)) * 0.050796813 -22.85856576);
       if (pedalCan == -1) {
