@@ -507,14 +507,6 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     can_send(&to_send, bus_num, true);
     return;
   }
-  /*if ((addr == 0x148) && (has_ibooster)) 
-  {
-    to_send.addr = (0x1A9 );
-    WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
-    WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
-    can_send(&to_send, bus_num, true);
-    return;
-  }*/
   if (addr == 0x115 )
   {
     to_send.addr = (0x129 );
@@ -523,19 +515,16 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     can_send(&to_send, bus_num, true);
 
     //we don't get 0x148 DI_espControl so send as 0x1A9 on CAN1 and also as 0x148 on CAN0
-    //TODOBB: check if true that it is sent when we have iBooster
-    //if (!has_ibooster) {
-      to_send.data_len_code = len_to_dlc(0x05);
-      int counter = ((RDHR & 0xF0) >> 4 ) & 0x0F;
-      RDLR = 0x000C0000 | (counter << 28);
-      int cksm = (0x38 + 0x0C + (counter << 4)) & 0xFF;
-      RDHR = cksm;
-      WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
-      WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
-      can_send(&to_send, 0, true);
-      to_send.addr = (0x1A9 );
-      can_send(&to_send, bus_num, true);
-    //}
+    to_send.data_len_code = len_to_dlc(0x05);
+    int counter = ((RDHR & 0xF0) >> 4 ) & 0x0F;
+    RDLR = 0x000C0000 | (counter << 28);
+    int cksm = (0x38 + 0x0C + (counter << 4)) & 0xFF;
+    RDHR = cksm;
+    WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
+    WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
+    can_send(&to_send, 0, true);
+    to_send.addr = (0x1A9 );
+    can_send(&to_send, bus_num, true);
     return;
   }
 
@@ -548,44 +537,34 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
 
     return;
   }
-  /*if ((addr == 0x175) && (has_ibooster)) 
-  {
-    to_send.addr = (0x169 );
-    WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
-    WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
-    can_send(&to_send, bus_num, true);
-    return;
-  }*/
   if (addr == 0x118 )
   {
     to_send.addr = (0x119 );
     WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
     WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
-    //if (!has_ibooster) {
-      //we don't get 0x175 ESP_wheelSpeeds so send as 0x169 on CAN1 and also as 0x175 on CAN0
-      int counter = GET_BYTES_48(to_fwd)  & 0x0F;
-      to_send.addr = (0x169 );
-      to_send.data_len_code = len_to_dlc(0x08);
-      int32_t speed_kph = (((0xFFF0000 & RDLR) >> 16) * 0.05 -25) * 1.609;
-      if (speed_kph < 0) {
-        speed_kph = 0;
-      }
-      if (((0xFFF0000 & RDLR) >> 16) == 0xFFF) {
-        speed_kph = 0x1FFF; //0xFFF is signal not available for DI_Torque2 speed 0x118; should be SNA or 0x1FFF for 0x169
-      } else {
-        speed_kph = (int)(speed_kph/0.04) & 0x1FFF;
-      }
-      RDLR = (speed_kph | (speed_kph << 13) | (speed_kph << 26)) & 0xFFFFFFFF;
-      RDHR = ((speed_kph  >> 6) | (speed_kph << 7) | (counter << 20)) & 0x00FFFFFF;
-      int cksm = 0x76;
-      cksm = (cksm + (RDLR & 0xFF) + ((RDLR >> 8) & 0xFF) + ((RDLR >> 16) & 0xFF) + ((RDLR >> 24) & 0xFF)) & 0xFF;
-      cksm = (cksm + (RDHR & 0xFF) + ((RDHR >> 8) & 0xFF) + ((RDHR >> 16) & 0xFF) + ((RDHR >> 24) & 0xFF)) & 0xFF;
-      RDHR = RDHR | (cksm << 24);
-      WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
-      WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
-      can_send(&to_send, bus_num, true);
-    //}
+    //we don't get 0x175 ESP_wheelSpeeds so send as 0x169 on CAN1 and also as 0x175 on CAN0
+    int counter = GET_BYTES_48(to_fwd)  & 0x0F;
+    to_send.addr = (0x169 );
+    to_send.data_len_code = len_to_dlc(0x08);
+    int32_t speed_kph = (((0xFFF0000 & RDLR) >> 16) * 0.05 -25) * 1.609;
+    if (speed_kph < 0) {
+      speed_kph = 0;
+    }
+    if (((0xFFF0000 & RDLR) >> 16) == 0xFFF) {
+      speed_kph = 0x1FFF; //0xFFF is signal not available for DI_Torque2 speed 0x118; should be SNA or 0x1FFF for 0x169
+    } else {
+      speed_kph = (int)(speed_kph/0.04) & 0x1FFF;
+    }
+    RDLR = (speed_kph | (speed_kph << 13) | (speed_kph << 26)) & 0xFFFFFFFF;
+    RDHR = ((speed_kph  >> 6) | (speed_kph << 7) | (counter << 20)) & 0x00FFFFFF;
+    int cksm = 0x76;
+    cksm = (cksm + (RDLR & 0xFF) + ((RDLR >> 8) & 0xFF) + ((RDLR >> 16) & 0xFF) + ((RDLR >> 24) & 0xFF)) & 0xFF;
+    cksm = (cksm + (RDHR & 0xFF) + ((RDHR >> 8) & 0xFF) + ((RDHR >> 16) & 0xFF) + ((RDHR >> 24) & 0xFF)) & 0xFF;
+    RDHR = RDHR | (cksm << 24);
+    WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
+    WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
+    can_send(&to_send, bus_num, true);
     return;
   }
   if (addr == 0x108 )
@@ -778,6 +757,7 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
   int bus = GET_BUS(to_push);
   int addr = GET_ADDR(to_push);
 
+  //looking for radar messages to see if we have a timeout
   if ((addr == 0x300) && (bus == tesla_radar_can)) 
   {
     uint32_t ts = TIM2->CNT;
@@ -794,12 +774,35 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
     }
   }
 
+  //0x631 is sent by radar to initiate the sync
+  if ((addr == 0x631) && (bus == tesla_radar_can))
+  {
+    uint32_t ts = TIM2->CNT;
+    uint32_t ts_elapsed = get_ts_elapsed(ts, tesla_last_radar_signal);
+    if (tesla_radar_status == 0) {
+      tesla_radar_status = 1;
+      tesla_last_radar_signal = ts;
+    } else
+    if ((ts_elapsed > TESLA_RADAR_TIMEOUT) && (tesla_radar_status > 0)) {
+      tesla_radar_status = 0;
+    } else 
+    if ((ts_elapsed <= TESLA_RADAR_TIMEOUT) && (tesla_radar_status > 0)) {
+      tesla_last_radar_signal = ts;
+    }
+  }
+
   if(valid) {
     if(bus == 0) {
       if (!tesla_powertrain) {
         if ((addr == 0x348) && (!has_ap_hardware)) {
           //use GTW_status at 10Hz to generate the IC messages for nonAP cars
           teslaPreAp_send_IC_messages();
+          //ALSO use this for radar timeout, this message is always on
+          uint32_t ts = TIM2->CNT;
+          uint32_t ts_elapsed = get_ts_elapsed(ts, tesla_last_radar_signal);
+          if ((ts_elapsed > TESLA_RADAR_TIMEOUT) && (tesla_radar_status > 0)) {
+            tesla_radar_status = 0;
+          } 
         }
 
         if (addr == 0x318) {
@@ -1193,7 +1196,7 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
     //148 does not exist, we use 115 at the same frequency to trigger and pass static vals
     //175 does not exist, we use 118 at the same frequency to trigger and pass vehicle speed
     if ((tesla_radar_status > 0 ) && ((addr == 0x20A ) || (addr == 0x118 ) || (addr == 0x108 ) ||  
-    (addr == 0x115 ) ||  (addr == 0x148 ) || (addr == 0x145)))
+    (addr == 0x115 ) ||  (addr == 0x145)))
     {
       teslaPreAp_fwd_to_radar_modded(tesla_radar_can, to_fwd);
     }
