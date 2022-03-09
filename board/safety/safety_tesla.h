@@ -179,6 +179,7 @@ const CanMsg TESLA_PREAP_TX_MSGS[] = {
     {0x2A9, 1, 8},  //GTW_carConfig
     {0x2B9, 1, 8},  //VIP_405HS
     {0x2D9, 1, 8},  //BC_status
+    {0x560, 0, 8},  //radar VIN fake message
     //pedal
     {0x551, 0, 6}, //GAS_INTERCEPTOR command can0
     {0x551, 2, 6}, //GAS_INTERCEPTOR command can2
