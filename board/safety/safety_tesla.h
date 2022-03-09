@@ -173,13 +173,14 @@ const CanMsg TESLA_PREAP_TX_MSGS[] = {
     {0x159, 1, 8},  //ESP_C
     {0x169, 1, 8},  //ESP_wheelSpeed
     {0x199, 1, 8},  //STW_ANGLHP_STAT
+    {0x1A9, 1, 5},  //DI_espControl
     {0x209, 1, 8},  //GTW_odo
     {0x219, 1, 8},  //STW_ACTN_RQ
-    {0x1A9, 1, 5},  //DI_espControl
     {0x2A9, 1, 8},  //GTW_carConfig
     {0x2B9, 1, 8},  //VIP_405HS
     {0x2D9, 1, 8},  //BC_status
     {0x560, 1, 8},  //radar VIN fake message
+    {0x641, 1, 8},  //UDS message to radar
     //pedal
     {0x551, 0, 6}, //GAS_INTERCEPTOR command can0
     {0x551, 2, 6}, //GAS_INTERCEPTOR command can2
@@ -506,39 +507,35 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     can_send(&to_send, bus_num, true);
     return;
   }
-  if ((addr == 0x148) && (has_ibooster)) 
+  /*if ((addr == 0x148) && (has_ibooster)) 
   {
     to_send.addr = (0x1A9 );
     WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
     WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
     return;
-  }
+  }*/
   if (addr == 0x115 )
   {
-    
-    int counter = ((RDHR & 0xF0) >> 4 ) & 0x0F;
-
     to_send.addr = (0x129 );
-    int cksm = (0x16 + (counter << 4)) & 0xFF;
     WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
     WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
 
     //we don't get 0x148 DI_espControl so send as 0x1A9 on CAN1 and also as 0x148 on CAN0
     //TODOBB: check if true that it is sent when we have iBooster
-    if (!has_ibooster) {
+    //if (!has_ibooster) {
       to_send.data_len_code = len_to_dlc(0x05);
-      to_send.addr = (0x148 );
+      int counter = ((RDHR & 0xF0) >> 4 ) & 0x0F;
       RDLR = 0x000C0000 | (counter << 28);
+      int cksm = (0x38 + 0x0C + (counter << 4)) & 0xFF;
       RDHR = cksm;
-      //can_send(&to_send, 0, true);
       WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
       WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
       can_send(&to_send, 0, true);
       to_send.addr = (0x1A9 );
       can_send(&to_send, bus_num, true);
-    }
+    //}
     return;
   }
 
@@ -551,21 +548,21 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
 
     return;
   }
-  if ((addr == 0x175) && (has_ibooster)) 
+  /*if ((addr == 0x175) && (has_ibooster)) 
   {
     to_send.addr = (0x169 );
     WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
     WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
     return;
-  }
+  }*/
   if (addr == 0x118 )
   {
     to_send.addr = (0x119 );
     WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
     WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
-    if (!has_ibooster) {
+    //if (!has_ibooster) {
       //we don't get 0x175 ESP_wheelSpeeds so send as 0x169 on CAN1 and also as 0x175 on CAN0
       int counter = GET_BYTES_48(to_fwd)  & 0x0F;
       to_send.addr = (0x169 );
@@ -588,7 +585,7 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
       WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
       WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
       can_send(&to_send, bus_num, true);
-    }
+    //}
     return;
   }
   if (addr == 0x108 )
@@ -615,15 +612,6 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
     WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
-
-    return;
-  }
-  if (addr == 0x148 )
-  {
-    to_send.addr = (0x1A9 );
-    WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
-    WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
-    can_send(&to_send, bus_num,true);
 
     return;
   }
