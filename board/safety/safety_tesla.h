@@ -594,6 +594,8 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
   if (addr == 0x108 )
   {
     to_send.addr = (0x109 );
+    WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
+    WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
 
     return;
@@ -601,6 +603,8 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
   if (addr == 0x308 )
   {
     to_send.addr = (0x209 );
+    WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
+    WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
 
     return;
@@ -608,6 +612,8 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
   if (addr == 0x45 )
   {
     to_send.addr = (0x219 );
+    WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
+    WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
 
     return;
@@ -615,6 +621,8 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
   if (addr == 0x148 )
   {
     to_send.addr = (0x1A9 );
+    WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
+    WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num,true);
 
     return;
@@ -622,6 +630,8 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
   if (addr == 0x30A)
   {
     to_send.addr = (0x2D9 );
+    WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
+    WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
 
     return;
