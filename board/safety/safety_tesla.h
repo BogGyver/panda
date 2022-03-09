@@ -775,10 +775,26 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
                                  NULL, NULL, NULL);
   }
 
-  if(valid) {
-    int bus = GET_BUS(to_push);
-    int addr = GET_ADDR(to_push);
+  int bus = GET_BUS(to_push);
+  int addr = GET_ADDR(to_push);
 
+  if ((addr == 0x300) && (bus == tesla_radar_can)) 
+  {
+    uint32_t ts = TIM2->CNT;
+    uint32_t ts_elapsed = get_ts_elapsed(ts, tesla_last_radar_signal);
+    if (tesla_radar_status == 1) {
+      tesla_radar_status = 2;
+      tesla_last_radar_signal = ts;
+    } else
+    if ((ts_elapsed > TESLA_RADAR_TIMEOUT) && (tesla_radar_status > 0)) {
+      tesla_radar_status = 0;
+    } else 
+    if ((ts_elapsed <= TESLA_RADAR_TIMEOUT) && (tesla_radar_status == 2)) {
+      tesla_last_radar_signal = ts;
+    }
+  }
+
+  if(valid) {
     if(bus == 0) {
       if (!tesla_powertrain) {
         if ((addr == 0x348) && (!has_ap_hardware)) {
@@ -910,22 +926,6 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
       if (addr == 0x2B9) {
         //AP1 DAS_control
         last_acc_status = ((GET_BYTE(to_push, 1)>> 4) & 0xF);
-      }
-    }
-
-    if ((addr == 0x300) && (bus == tesla_radar_can)) 
-    {
-      uint32_t ts = TIM2->CNT;
-      uint32_t ts_elapsed = get_ts_elapsed(ts, tesla_last_radar_signal);
-      if (tesla_radar_status == 1) {
-        tesla_radar_status = 2;
-        tesla_last_radar_signal = ts;
-      } else
-      if ((ts_elapsed > TESLA_RADAR_TIMEOUT) && (tesla_radar_status > 0)) {
-        tesla_radar_status = 0;
-      } else 
-      if ((ts_elapsed <= TESLA_RADAR_TIMEOUT) && (tesla_radar_status == 2)) {
-        tesla_last_radar_signal = ts;
       }
     }
 
