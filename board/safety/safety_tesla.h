@@ -78,14 +78,11 @@ int current_car_time = -1;
 int tesla_radar_status = 0; //0-not present, 1-initializing, 2-active
 uint32_t tesla_last_radar_signal = 0;
 const uint32_t TESLA_RADAR_TIMEOUT = 10000000; // 10s second between real time checks
-char radar_VIN[] = "                 "; //leave empty if your radar VIN matches the car VIN
-int tesla_radar_vin_complete = 0;
 uint8_t tesla_radar_can = 1;
 uint8_t tesla_epas_can = 0;
 int tesla_radar_trigger_message_id = 0; //not used by tesla, to showcase for other cars
 int radarPosition = 0; //0 nosecone, 1 facelift
 int radarEpasType = 0; //0/1 bosch, 2-4 mando
-int tesla_radar_should_send = 0;
 
 //TESLA WITH AUTOPILOT DEFS
 const CanMsg TESLA_AP_TX_MSGS[] = {
@@ -396,7 +393,7 @@ static void teslaPreAp_fwd_to_radar_as_is(uint8_t bus_num, CANPacket_t *to_fwd) 
   if (has_ap_hardware) {
     return;
   }
-  if ((!do_radar_emulation) || (tesla_radar_vin_complete !=7) || (tesla_radar_should_send==0) ) {
+  if (!do_radar_emulation) {
     return;
   }
   CANPacket_t to_send;
@@ -410,15 +407,11 @@ static void teslaPreAp_fwd_to_radar_as_is(uint8_t bus_num, CANPacket_t *to_fwd) 
   can_send(&to_send, bus_num, true);
 }
 
-static uint32_t radar_VIN_char(int pos, int shift) {
-  return (((int)radar_VIN[pos]) << (shift * 8));
-}
-
 static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd) {
   if (has_ap_hardware) {
     return;
   }
-  if ((!do_radar_emulation) || (tesla_radar_vin_complete !=7) || (tesla_radar_should_send==0) ) {
+  if (!do_radar_emulation) {
     return;
   }
   int32_t addr = GET_ADDR(to_fwd);
@@ -435,22 +428,6 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
   if (addr == 0x405 )
   {
     to_send.addr = (0x2B9 );
-    if (((RDLR & 0x10) == 0x10) && (sizeof(radar_VIN) >= 4) && (!bosch_radar_vin_learn))
-    {
-      int rec = RDLR &  0xFF;
-      if (rec == 0x10) {
-        RDLR = 0x00000000 | rec;
-        RDHR = radar_VIN_char(0,1) | radar_VIN_char(1,2) | radar_VIN_char(2,3);
-      }
-      if (rec == 0x11) {
-        RDLR = rec | radar_VIN_char(3,1) | radar_VIN_char(4,2) | radar_VIN_char(5,3);
-        RDHR = radar_VIN_char(6,0) | radar_VIN_char(7,1) | radar_VIN_char(8,2) | radar_VIN_char(9,3);
-      }
-      if (rec == 0x12) {
-        RDLR = rec | radar_VIN_char(10,1) | radar_VIN_char(11,2) | radar_VIN_char(12,3);
-        RDHR = radar_VIN_char(13,0) | radar_VIN_char(14,1) | radar_VIN_char(15,2) | radar_VIN_char(16,3);
-      }
-    }
     WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
     WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
     can_send(&to_send, bus_num, true);
@@ -469,12 +446,6 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     RDHR = RDHR & 0xCFFF0F0F; //take out values for autopilot, radarPosition and epasType
     RDHR = RDHR | 0x10000000 | (radarPosition << 4) | (radarEpasType << 12);
     
-    if ((sizeof(radar_VIN) >= 4) && (((int)(radar_VIN[7]) == 0x32) || ((int)(radar_VIN[7]) == 0x34))) {
-        //also change to AWD if needed (most likely) if manual VIN and if position 8 of VIN is a 2 (dual motor)
-        if (!bosch_radar_vin_learn) {
-          RDLR = RDLR | 0x08;
-        }
-    }
     //now change address and send to radar
     to_send.addr = (0x2A9 );
     WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
@@ -1013,50 +984,6 @@ static int tesla_tx_hook(CANPacket_t *to_send) {
     tx = 0;
   }
 
-  //capture message for radarVIN and settings
-  if ((!has_ap_hardware) && (do_radar_emulation) && (addr == 0x560)) {
-    int id = (GET_BYTE(to_send,0) & 0xFF);
-    int radarVin_b1 = ((GET_BYTES_04(to_send) >> 8) & 0xFF);
-    int radarVin_b2 = ((GET_BYTES_04(to_send) >> 16) & 0xFF);
-    int radarVin_b3 = ((GET_BYTES_04(to_send) >> 24) & 0xFF);
-    int radarVin_b4 = (GET_BYTES_48(to_send) & 0xFF);
-    int radarVin_b5 = ((GET_BYTES_48(to_send) >> 8) & 0xFF);
-    int radarVin_b6 = ((GET_BYTES_48(to_send) >> 16) & 0xFF);
-    int radarVin_b7 = ((GET_BYTES_48(to_send) >> 24) & 0xFF);
-    if (id == 0) {
-      tesla_radar_should_send = (radarVin_b2 & 0x01);
-      radarPosition =  ((radarVin_b2 >> 1) & 0x03);
-      radarEpasType = ((radarVin_b2 >> 3) & 0x07);
-      tesla_radar_trigger_message_id = (radarVin_b3 << 8) + radarVin_b4;
-      tesla_radar_can = radarVin_b1;
-      radar_VIN[0] = radarVin_b5;
-      radar_VIN[1] = radarVin_b6;
-      radar_VIN[2] = radarVin_b7;
-      tesla_radar_vin_complete = tesla_radar_vin_complete | 1;
-    }
-    if (id == 1) {
-      radar_VIN[3] = radarVin_b1;
-      radar_VIN[4] = radarVin_b2;
-      radar_VIN[5] = radarVin_b3;
-      radar_VIN[6] = radarVin_b4;
-      radar_VIN[7] = radarVin_b5;
-      radar_VIN[8] = radarVin_b6;
-      radar_VIN[9] = radarVin_b7;
-      tesla_radar_vin_complete = tesla_radar_vin_complete | 2;
-    }
-    if (id == 2) {
-      radar_VIN[10] = radarVin_b1;
-      radar_VIN[11] = radarVin_b2;
-      radar_VIN[12] = radarVin_b3;
-      radar_VIN[13] = radarVin_b4;
-      radar_VIN[14] = radarVin_b5;
-      radar_VIN[15] = radarVin_b6;
-      radar_VIN[16] = radarVin_b7;
-      tesla_radar_vin_complete = tesla_radar_vin_complete | 4;
-    }
-    return false;
-  }
-
   //do not allow long control if not enabled
   if ((!tesla_longitudinal) && ((addr == 0x2B9) || (addr == 0x209))) {
     //{0x2B9, 0, 8},  // DAS_control - Long Control
@@ -1325,9 +1252,7 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
 static const addr_checks* tesla_init(int16_t param) {
   if (param < 0) {
     bosch_radar_vin_learn = true;
-    tesla_radar_vin_complete = 7;
     param = - param;
-    tesla_radar_should_send = 1;
   }
   tesla_powertrain = GET_FLAG(param, FLAG_TESLA_POWERTRAIN);
   tesla_longitudinal = GET_FLAG(param, FLAG_TESLA_LONG_CONTROL);
