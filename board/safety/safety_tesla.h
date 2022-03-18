@@ -404,7 +404,10 @@ static void teslaPreAp_fwd_to_radar_as_is(uint8_t bus_num, CANPacket_t *to_fwd, 
   to_send.addr = addr;
   to_send.bus = bus_num;
   to_send.data_len_code = to_fwd->data_len_code;
-  (void)memcpy(to_send.data, to_fwd->data, dlc_to_len[to_fwd->data_len_code]);
+  uint32_t RDLR = GET_BYTES_04(to_fwd);
+  uint32_t RDHR = GET_BYTES_48(to_fwd);
+  WORD_TO_BYTE_ARRAY(&to_send.data[4],RDHR);
+  WORD_TO_BYTE_ARRAY(&to_send.data[0],RDLR);
   can_send(&to_send, bus_num, true);
 }
 
@@ -763,6 +766,11 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
 
   int bus = GET_BUS(to_push);
   int addr = GET_ADDR(to_push);
+
+  if (((bus == 0) && (addr == 0x671)) || 
+      ((bus == tesla_radar_can) && (addr = 0x651))) {
+      valid = true;
+  }
 
   if ((bus == 0) && (addr == 0x39D) && (!has_ibooster_ecu)) {
     //found IBST_status, it has official ibooster
@@ -1153,8 +1161,10 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
       }
       //forward 0x651 on can1 to 0x681 on can0 radar UDS
       if ((bus_num == tesla_radar_can) && (addr == 0x651)) {
+        //change addr
         teslaPreAp_fwd_to_radar_as_is(0, to_fwd, 0x681);
       }
+      return -1;
   }
 
   if (has_ap_hardware) {
