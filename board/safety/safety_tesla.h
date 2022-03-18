@@ -181,7 +181,8 @@ const CanMsg TESLA_PREAP_TX_MSGS[] = {
     {0x2B9, 1, 8},  //VIP_405HS
     {0x2D9, 1, 8},  //BC_status
     {0x560, 1, 8},  //radar VIN fake message
-    {0x641, 1, 8},  //UDS message to radar
+    {0x641, 1, 8},  //UDS message to radar CAN0 0x671 -> 0x641 on CAN1
+    {0x681, 0, 8},  //UDS answer from CAN1 0x651 -> 0x681 on CAN0
     //pedal
     {0x551, 0, 6}, //GAS_INTERCEPTOR command can0
     {0x551, 2, 6}, //GAS_INTERCEPTOR command can2
@@ -389,7 +390,7 @@ static bool tesla_compute_fwd_should_mod(CANPacket_t *to_fwd) {
     return valid;
 }
 
-static void teslaPreAp_fwd_to_radar_as_is(uint8_t bus_num, CANPacket_t *to_fwd) {
+static void teslaPreAp_fwd_to_radar_as_is(uint8_t bus_num, CANPacket_t *to_fwd, uint16_t addr) {
   if (has_ap_hardware) {
     return;
   }
@@ -400,7 +401,7 @@ static void teslaPreAp_fwd_to_radar_as_is(uint8_t bus_num, CANPacket_t *to_fwd) 
   to_send.returned = 0U;
   to_send.rejected = 0U;
   to_send.extended = to_fwd->extended;
-  to_send.addr = to_fwd->addr;
+  to_send.addr = addr;
   to_send.bus = bus_num;
   to_send.data_len_code = to_fwd->data_len_code;
   (void)memcpy(to_send.data, to_fwd->data, dlc_to_len[to_fwd->data_len_code]);
@@ -1144,6 +1145,18 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
       return -1;
   }
 
+  if ((!has_ap_hardware) && (do_radar_emulation)){
+      //forward 0x671 on can0 to 0x641 on can1 radar UDS
+      if ((bus_num == 0) && (addr == 0x671)) {
+        //change addr
+        teslaPreAp_fwd_to_radar_as_is(tesla_radar_can, to_fwd, 0x641);
+      }
+      //forward 0x681 on can1 to 0x651 on can0 radar UDS
+      if ((bus_num == tesla_radar_can) && (addr == 0x681)) {
+        teslaPreAp_fwd_to_radar_as_is(0, to_fwd, 0x651);
+      }
+  }
+
   if (has_ap_hardware) {
   //we check to see first if these are modded forwards
     fwd_modded = fwd_modded_message(to_fwd,TESLA_AP_FWD_MODDED,sizeof(TESLA_AP_FWD_MODDED)/sizeof(TESLA_AP_FWD_MODDED[0]),
@@ -1172,11 +1185,6 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
     if  (((addr == 0xE ) || (addr == 0x308 ) || (addr == 0x45 ) || (addr == 0x398 ) ||
     (addr == 0x405 ) ||  (addr == 0x30A) ||  (addr == 0x175) ||  (addr == 0x148)))  {
       teslaPreAp_fwd_to_radar_modded(tesla_radar_can, to_fwd);
-    }
-
-    //forward to radar unmodded the UDS messages 0x641
-    if  (addr == 0x641 ) {
-      teslaPreAp_fwd_to_radar_as_is(tesla_radar_can, to_fwd);
     }
   }
 
