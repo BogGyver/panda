@@ -50,6 +50,8 @@ bool enable_hao = false;
 bool tesla_longitudinal = false;
 bool tesla_powertrain = false;  // Are we the second panda intercepting the powertrain bus?
 
+bool bosch_radar_vin_learn = false;
+
 int last_acc_status = -1;
 int prev_controls_allowed = 0;
 
@@ -433,7 +435,7 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
   if (addr == 0x405 )
   {
     to_send.addr = (0x2B9 );
-    if (((RDLR & 0x10) == 0x10) && (sizeof(radar_VIN) >= 4))
+    if (((RDLR & 0x10) == 0x10) && (sizeof(radar_VIN) >= 4) && (!bosch_radar_vin_learn))
     {
       int rec = RDLR &  0xFF;
       if (rec == 0x10) {
@@ -469,7 +471,9 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     
     if ((sizeof(radar_VIN) >= 4) && (((int)(radar_VIN[7]) == 0x32) || ((int)(radar_VIN[7]) == 0x34))) {
         //also change to AWD if needed (most likely) if manual VIN and if position 8 of VIN is a 2 (dual motor)
-        RDLR = RDLR | 0x08;
+        if (!bosch_radar_vin_learn) {
+          RDLR = RDLR | 0x08;
+        }
     }
     //now change address and send to radar
     to_send.addr = (0x2A9 );
@@ -1319,6 +1323,11 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
 }
 
 static const addr_checks* tesla_init(int16_t param) {
+  if (param < 0) {
+    bosch_radar_vin_learn = true;
+    tesla_radar_vin_complete = 7;
+    param = - param;
+  }
   tesla_powertrain = GET_FLAG(param, FLAG_TESLA_POWERTRAIN);
   tesla_longitudinal = GET_FLAG(param, FLAG_TESLA_LONG_CONTROL);
   has_ap_hardware = GET_FLAG(param, FLAG_TESLA_HAS_AP);
