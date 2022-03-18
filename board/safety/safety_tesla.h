@@ -1235,7 +1235,7 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
     //check all messages we need to also send to radar, moddified, after we receive 0x631 from radar
     //148 does not exist, we use 115 at the same frequency to trigger and pass static vals
     //175 does not exist, we use 118 at the same frequency to trigger and pass vehicle speed
-    if ((tesla_radar_status >= 0 ) && ((addr == 0x20A ) || (addr == 0x118 ) || (addr == 0x108 ) ||  
+    if (((tesla_radar_status >= 0 ) || (bosch_radar_vin_learn)) && ((addr == 0x20A ) || (addr == 0x118 ) || (addr == 0x108 ) ||  
     (addr == 0x115 ) ||  (addr == 0x145)))
     {
       teslaPreAp_fwd_to_radar_modded(tesla_radar_can, to_fwd);
@@ -1327,11 +1327,13 @@ static const addr_checks* tesla_init(int16_t param) {
     bosch_radar_vin_learn = true;
     tesla_radar_vin_complete = 7;
     param = - param;
+    tesla_radar_should_send = 1;
   }
   tesla_powertrain = GET_FLAG(param, FLAG_TESLA_POWERTRAIN);
   tesla_longitudinal = GET_FLAG(param, FLAG_TESLA_LONG_CONTROL);
   has_ap_hardware = GET_FLAG(param, FLAG_TESLA_HAS_AP);
-  has_ibooster_ecu = GET_FLAG(param, FLAG_TESLA_HAS_IBOOSTER) || GET_FLAG(param, FLAG_TESLA_HAS_AP);
+  has_ibooster = GET_FLAG(param, FLAG_TESLA_HAS_AP);
+  has_ibooster_ecu = GET_FLAG(param, FLAG_TESLA_HAS_IBOOSTER);
   has_acc = GET_FLAG(param, FLAG_TESLA_HAS_AP);
   has_hud_integration = GET_FLAG(param,FLAG_TESLA_HAS_IC_INTEGRATION);
   has_body_controls = true;
