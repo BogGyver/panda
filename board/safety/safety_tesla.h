@@ -188,7 +188,7 @@ const CanMsg TESLA_PREAP_TX_MSGS[] = {
     {0x551, 0, 6}, //GAS_INTERCEPTOR command can0
     {0x551, 2, 6}, //GAS_INTERCEPTOR command can2
     //brake wipe request
-    {0x208, 1, 4}, //GTW_ESP1 spammed 
+    {0x208, 0, 4}, //GTW_ESP1 spammed 
   };
 #define TESLA_PREAP_TX_LEN (sizeof(TESLA_PREAP_TX_MSGS) / sizeof(TESLA_PREAP_TX_MSGS[0]))
 
