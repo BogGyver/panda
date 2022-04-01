@@ -49,7 +49,8 @@ int main(void) {
 
   // validate length
   int len = (int)_app_start[0];
-  if ((len < 8) || (len > (0x1000000 - 0x4000 - 4 - RSANUMBYTES))) goto fail;
+  //BB no len check
+  //if ((len < 8) || (len > (0x1000000 - 0x4000 - 4 - RSANUMBYTES))) goto fail;
 
   // compute SHA hash
   uint8_t digest[SHA_DIGEST_SIZE];

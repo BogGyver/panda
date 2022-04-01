@@ -7,7 +7,7 @@ echo "================================="
 echo "  "
 echo "Starting the recover process..."
 echo "  "
-if [ -f "/data/openpilot/prebuilt"];
+if [ -f "/data/openpilot/prebuilt" ]; then
   echo "Prebuilt code... just flashing..."
 else
   scons -u
@@ -22,7 +22,7 @@ else
     exit 1
   fi
 fi
-PYTHONPATH=.. python3 -c "from python import Panda; Panda().reset(); Panda().reset(enter_bootloader=True)" || true
+PYTHONPATH=.. python3 -c "from python import Panda; Panda().reset(enter_bootstub=True); Panda().reset(enter_bootloader=True)" || true
 ret=$?
 if [ $ret -ne 0 ]; then
   echo "================================="
