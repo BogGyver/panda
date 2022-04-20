@@ -113,7 +113,7 @@ uint8_t ivs_checksum(uint8_t *dat, int len, int addr) {
 #define TRIGGER_MSG_FREQ 10U //10 Hz
 
 //avoid using floating points
-#define MAX_VALUE 1024U
+#define MAX_VALUE 3117U
 #define INCRESE_IVS_PER_SECOND MAX_VALUE * 2U / 50U //0.2V per sec
 #define DECREASE_IVS_PER_SECOND MAX_VALUE / 100U // 0.05V per sec
 #define DECREASE_IVS_PER_SECOND_WHEN_BRAKING MAX_VALUE / 50U //0.1V per sec
@@ -125,11 +125,11 @@ uint8_t ivs_checksum(uint8_t *dat, int len, int addr) {
 
 
 //values used for logic and CAN messages
-uint16_t ivs_sensor_value = 0;
+uint32_t ivs_sensor_value = 0;
 uint8_t brake_pressed = 0;
 uint8_t compressor_on = 0;
 uint8_t ivs_ok = 1;
-uint16_t vacuum_pump_state = 0;
+uint32_t vacuum_pump_state = 0;
 unsigned int ivs_idx = 0;
 int led_value = 0;
 
@@ -255,7 +255,7 @@ void TIM3_IRQ_Handler(void) {
 
 void ivs(void) {
   // read/write
-  vacuum_pump_state = (adc_get(ADCCHAN_VACUUM_PUMP) >> 2);
+  vacuum_pump_state = adc_get(ADCCHAN_VACUUM_PUMP);
   if (vacuum_pump_state >= COMPRESSOR_ON_THRESHOLD) {
     compressor_on = 1;
   } else {
@@ -263,7 +263,7 @@ void ivs(void) {
   }
 
   // write the ivs to the DAC
-  dac_set(0, (ivs_sensor_value << 2));
+  dac_set(0, (ivs_sensor_value));
 
   watchdog_feed();
 }
@@ -318,6 +318,7 @@ int main(void) {
   enable_interrupts();
 
   // main ivs loop
+  ivs_sensor_value = MIN_IVS_VALUE;
   while (1) {
     ivs();
   }
