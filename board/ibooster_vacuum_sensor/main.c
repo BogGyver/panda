@@ -115,12 +115,12 @@ uint8_t ivs_checksum(uint8_t *dat, int len, int addr) {
 //avoid using floating points
 #define MAX_VALUE 3117U
 #define INCRESE_IVS_PER_SECOND MAX_VALUE * 2U / 50U //0.2V per sec
-#define DECREASE_IVS_PER_SECOND 10U // 0.01V per sec
+#define DECREASE_IVS_PER_SECOND MAX_VALUE * 1U / 1000U // 0.005V per sec
 #define DECREASE_IVS_PER_BRAKING_EVENT MAX_VALUE * 2U / 50U //0.2V per event
 
-#define DECREASE_IVS_PER_SECOND_WHEN_BRAKING MAX_VALUE / 50U //0.1V per sec
+#define DECREASE_IVS_PER_SECOND_WHEN_BRAKING MAX_VALUE / 500U //0.1V per sec
 #define MIN_IVS_VALUE  MAX_VALUE * 17U / 50U  //1.7V
-#define MAX_IVS_VALUE  MAX_VALUE * 26U / 50U  //2.6V
+#define MAX_IVS_VALUE  MAX_VALUE * 46U / 50U  //4.6V
 //#define MAX_IVS_VALUE_WHEN_BRAKING  MAX_VALUE * 22U / 50U  //2.2V
 
 #define COMPRESSOR_ON_THRESHOLD 1800U
@@ -167,12 +167,7 @@ void emulate_sensor(void) {
     if (prev_brake_pressed == 0) {
       ivs_sensor_value -= DECREASE_IVS_PER_BRAKING_EVENT; //decrease 0.x V per braking
     }
-    /*
     ivs_sensor_value -= (DECREASE_IVS_PER_SECOND_WHEN_BRAKING / TRIGGER_MSG_FREQ);
-    if (ivs_sensor_value > MAX_IVS_VALUE_WHEN_BRAKING) {
-      ivs_sensor_value = MAX_IVS_VALUE_WHEN_BRAKING;
-    }
-    */
   } else {
     if (decrease_pressure_counter == 0) {
       ivs_sensor_value -= (DECREASE_IVS_PER_SECOND / TRIGGER_MSG_FREQ);
