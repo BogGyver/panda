@@ -123,8 +123,8 @@ uint8_t ivs_checksum(uint8_t *dat, int len, int addr) {
 #define ORIGINAL_VALUE_START_BRAKE  MAX_VALUE * 20U / 50U //2.0V
 
 #define DECREASE_IVS_PER_SECOND_WHEN_BRAKING MAX_VALUE / 500U //0.1V per sec
-#define MIN_IVS_VALUE  MAX_VALUE * 16U / 50U  //1.6V
-#define MAX_IVS_VALUE  MAX_VALUE * 46U / 50U  //4.6V
+#define MIN_IVS_VALUE  MAX_VALUE * 17U / 50U  //1.6V
+#define MAX_IVS_VALUE  MAX_VALUE * 25U / 50U  //4.6V
 #define DO_SLOW_LEAK 0
 
 #define COMPRESSOR_ON_THRESHOLD 1800U
@@ -189,6 +189,7 @@ void emulate_sensor(void) {
   if (ivs_sensor_value > MAX_IVS_VALUE) {
     ivs_sensor_value = MAX_IVS_VALUE;
   }
+  prev_brake_pressed = brake_pressed;
 }
 
 void CAN1_RX0_IRQ_Handler(void) {
@@ -214,7 +215,6 @@ void CAN1_RX0_IRQ_Handler(void) {
       // normal packet, for now do nothing
     }
     if (address == 0x20A) { //brake message, might use ibooster msg later
-      prev_brake_pressed = brake_pressed;
       if ((GET_MAILBOX_BYTE(&CAN->sFIFOMailBox[0],0) & 0x0C) >> 2 != 1) {
         brake_pressed = 1;
       } else {
