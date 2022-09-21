@@ -2,11 +2,11 @@ void can_send(CANPacket_t *to_push, uint8_t bus_number, bool skip_tx_hook);
 
 const struct lookup_t TESLA_LOOKUP_ANGLE_RATE_UP = {
     {2., 7., 17.},
-    {8., 3.5, 1.6}};
+    {8., .8, .25}};
 
 const struct lookup_t TESLA_LOOKUP_ANGLE_RATE_DOWN = {
     {2., 7., 17.},
-    {8., 7., 1.6}};
+    {5., 3.5, .8}};
 
 const int TESLA_DEG_TO_CAN = 10;
 
@@ -881,7 +881,7 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
           // Steering angle: (0.1 * val) - 819.2 in deg.
           // Store it 1/10 deg to match steering request
           int angle_meas_new = (((GET_BYTE(to_push, 4) & 0x3F) << 8) | GET_BYTE(to_push, 5)) - 8192;
-          update_sample(&angle_meas, angle_meas_new);
+          //update_sample(&angle_meas, angle_meas_new);
         }
 
         if(addr == 0x155) {
