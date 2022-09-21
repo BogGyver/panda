@@ -881,7 +881,7 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
           // Steering angle: (0.1 * val) - 819.2 in deg.
           // Store it 1/10 deg to match steering request
           int angle_meas_new = (((GET_BYTE(to_push, 4) & 0x3F) << 8) | GET_BYTE(to_push, 5)) - 8192;
-          //update_sample(&angle_meas, angle_meas_new);
+          update_sample(&angle_meas, angle_meas_new);
         }
 
         if(addr == 0x155) {
