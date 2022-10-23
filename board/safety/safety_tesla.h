@@ -782,7 +782,7 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
       valid = true;
   }
 
-  if ((bus == 0) && (addr == 0x39D) && (!has_ibooster_ecu)) {
+  if ((bus == 0) && (addr == 0x39D) && (!has_ibooster_ecu) && (has_ap_hardware)) {
     //found IBST_status, it has official ibooster
     has_ibooster = true;
   }
