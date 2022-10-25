@@ -453,7 +453,7 @@ static void teslaPreAp_fwd_to_radar_modded(uint8_t bus_num, CANPacket_t *to_fwd)
     //change frontradarHW = 1  and dashw = 1
     //SG_ GTW_dasHw : 7|2@0+ (1,0) [0|0] ""  NEO
     //SG_ GTW_parkAssistInstalled : 11|2@0+ (1,0) [0|0] ""  NEO
-    if (RDLR & 0xC0 > 0) {
+    if ((RDLR & 0xC0) > 0) {
       has_das_hw = true;
     }
     RDLR = RDLR & 0xFFFFF33F;
