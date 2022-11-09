@@ -8,7 +8,7 @@ const struct lookup_t TESLA_LOOKUP_ANGLE_RATE_DOWN = {
     {2., 7., 17.},
     {9., 5., 4.5}};
 
-const int TESLA_DEG_TO_CAN = 100;
+const int TESLA_DEG_TO_CAN = 10;
 
 static uint8_t len_to_dlc(uint8_t len) {
   if (len <= 8) {
@@ -76,6 +76,7 @@ int EPB_epasControl_idx = 0;
 int time_at_last_stalk_pull = -1;
 int current_car_time = -1;
 
+int hands_on_level = 0;
 
 //use for Bosch radar
 int tesla_radar_status = 0; //0-not present, 1-initializing, 2-active
@@ -885,6 +886,7 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
           // Steering angle: (0.1 * val) - 819.2 in deg.
           // Store it 1/10 deg to match steering request
           int angle_meas_new = (((GET_BYTE(to_push, 4) & 0x3F) << 8) | GET_BYTE(to_push, 5)) - 8192;
+          hands_on_level = ((GET_BYTE(to_push, 4) >> 6) & 0x03);
           update_sample(&angle_meas, angle_meas_new);
         }
 
@@ -1050,9 +1052,13 @@ static int tesla_tx_hook(CANPacket_t *to_send) {
     if(controls_allowed && steer_control_enabled) {
       // Add 1 to not false trigger the violation
       float delta_angle_float;
-      delta_angle_float = (interpolate(TESLA_LOOKUP_ANGLE_RATE_UP, vehicle_speed) * TESLA_DEG_TO_CAN) + 1.;
+      float mult = 1.0;
+      if (hands_on_level > 0) {
+        mult = mult * 10;
+      }
+      delta_angle_float = (interpolate(TESLA_LOOKUP_ANGLE_RATE_UP, vehicle_speed) * TESLA_DEG_TO_CAN * mult) + 1.;
       int delta_angle_up = (int)(delta_angle_float);
-      delta_angle_float =  (interpolate(TESLA_LOOKUP_ANGLE_RATE_DOWN, vehicle_speed) * TESLA_DEG_TO_CAN) + 1.;
+      delta_angle_float =  (interpolate(TESLA_LOOKUP_ANGLE_RATE_DOWN, vehicle_speed) * TESLA_DEG_TO_CAN * mult) + 1.;
       int delta_angle_down = (int)(delta_angle_float);
       int highest_desired_angle = desired_angle_last + ((desired_angle_last > 0) ? delta_angle_up : delta_angle_down);
       int lowest_desired_angle = desired_angle_last - ((desired_angle_last >= 0) ? delta_angle_down : delta_angle_up);
