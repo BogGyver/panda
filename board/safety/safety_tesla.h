@@ -892,7 +892,8 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
           // Store it 1/10 deg to match steering request
           int angle_meas_new = (((GET_BYTE(to_push, 4) & 0x3F) << 8) | GET_BYTE(to_push, 5)) - 8192;
           hands_on_level = ((GET_BYTE(to_push, 4) >> 6) & 0x03);
-          if (hands_on_level > 0) {
+          float torsionBarTorque = ABS((((GET_BYTE(to_push, 2) & 0x0F) << 8) | GET_BYTE(to_push, 3))* 0.01 -20.5);
+          if ((hands_on_level > 0) || (torsionBarTorque > 0.9)) {
             hands_on_level_last_signal = microsecond_timer_get();
           }
           uint32_t ts = microsecond_timer_get();
