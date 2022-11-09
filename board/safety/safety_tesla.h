@@ -77,6 +77,10 @@ int time_at_last_stalk_pull = -1;
 int current_car_time = -1;
 
 int hands_on_level = 0;
+int prev_hands_on_level = 0;
+uint32_t hands_on_level_last_signal = 0;
+const uint32_t TIME_FOR_HANDS_ON = 1000000; //1s after touching
+
 
 //use for Bosch radar
 int tesla_radar_status = 0; //0-not present, 1-initializing, 2-active
@@ -887,6 +891,12 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
           // Store it 1/10 deg to match steering request
           int angle_meas_new = (((GET_BYTE(to_push, 4) & 0x3F) << 8) | GET_BYTE(to_push, 5)) - 8192;
           hands_on_level = ((GET_BYTE(to_push, 4) >> 6) & 0x03);
+          if ((hands_on_level != prev_hands_on_level) && (hands_on_level > 0)) {
+            hands_on_level_last_signal = microsecond_timer_get();
+          } else {
+            hands_on_level_last_signal = 0;
+          }
+          prev_hands_on_level = hands_on_level;
           update_sample(&angle_meas, angle_meas_new);
         }
 
@@ -1053,8 +1063,10 @@ static int tesla_tx_hook(CANPacket_t *to_send) {
       // Add 1 to not false trigger the violation
       float delta_angle_float;
       float mult = 1.0;
-      if (hands_on_level > 0) {
-        mult = mult * 10;
+      uint32_t ts = microsecond_timer_get();
+      uint32_t ts_elapsed = get_ts_elapsed(ts, hands_on_level_last_signal);
+      if (ts_elapsed <= TIME_FOR_HANDS_ON) {
+        mult = mult * 100;
       }
       delta_angle_float = (interpolate(TESLA_LOOKUP_ANGLE_RATE_UP, vehicle_speed) * TESLA_DEG_TO_CAN * mult) + 1.;
       int delta_angle_up = (int)(delta_angle_float);
