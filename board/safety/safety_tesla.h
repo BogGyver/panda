@@ -8,7 +8,7 @@ const struct lookup_t TESLA_LOOKUP_ANGLE_RATE_DOWN = {
     {2., 7., 17.},
     {9., 5., 4.5}};
 
-const int TESLA_DEG_TO_CAN = 10;
+const int TESLA_DEG_TO_CAN = 100;
 
 static uint8_t len_to_dlc(uint8_t len) {
   if (len <= 8) {
