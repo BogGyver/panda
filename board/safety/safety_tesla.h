@@ -893,8 +893,6 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
           hands_on_level = ((GET_BYTE(to_push, 4) >> 6) & 0x03);
           if ((hands_on_level != prev_hands_on_level) && (hands_on_level > 0)) {
             hands_on_level_last_signal = microsecond_timer_get();
-          } else {
-            hands_on_level_last_signal = 0;
           }
           prev_hands_on_level = hands_on_level;
           update_sample(&angle_meas, angle_meas_new);
