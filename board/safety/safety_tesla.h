@@ -1200,20 +1200,20 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
         //change addr
         teslaPreAp_fwd_to_radar_as_is(tesla_radar_can, to_fwd, 0x641);
         //also send as is
-        return 1;
+        return -1;
       }
       if ((bus_num == 0) && (addr == 0x641)) {
-        return 1;
+        return -1;
       }
       //forward 0x651 on can1 to 0x681 on can0 radar UDS
       if ((bus_num == tesla_radar_can) && (addr == 0x651)) {
         //change addr
         teslaPreAp_fwd_to_radar_as_is(0, to_fwd, 0x681);
         //also send as is
-        return 0;
+        return -1;
       }
       if ((bus_num == tesla_radar_can) && (addr == 0x681)) {
-        return 0;
+        return -1;
       }
   }
 
