@@ -1097,15 +1097,15 @@ static int tesla_tx_hook(CANPacket_t *to_send) {
     }
   }
 
-  if(!tesla_powertrain && (addr == 0x45)) {
+  /*if(!tesla_powertrain && (addr == 0x45)) {
     // No button other than cancel can be sent by us when we have AP
     if (has_ap_hardware) {
       int control_lever_status = (GET_BYTE(to_send, 0) & 0x3F);
-      //if((control_lever_status != 0) && (control_lever_status != 1)) {
-      //  violation = true;
-      //}
+      if((control_lever_status != 0) && (control_lever_status != 1)) {
+        violation = true;
+      }
     }
-  }
+  }*/
 
   if(addr == (tesla_powertrain ? 0x2bf : 0x2b9)) {
     // DAS_control: longitudinal control message
