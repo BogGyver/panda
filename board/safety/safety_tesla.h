@@ -41,6 +41,7 @@ const uint16_t FLAG_TESLA_HAS_IBOOSTER = 128;
 
 
 bool has_ap_hardware = false;
+bool has_ap_disabled = false;
 bool has_ibooster = false;
 bool has_ibooster_ecu = false;
 bool has_acc = false;
@@ -859,7 +860,7 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
           DAS_lastStalkL = GET_BYTES_04(to_push);
           DAS_lastStalkH = GET_BYTES_48(to_push);
           // 6 bits starting at position 0
-          if (!has_ap_hardware) {
+          if ((!has_ap_hardware) || (has_ap_hardware && has_ap_disabled)) {
             int ap_lever_position = GET_BYTE(to_push, 0) & 0x3F;
             if (ap_lever_position == 2)
             { // pull forward
@@ -919,14 +920,14 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
 
       if(addr == (tesla_powertrain ? 0x106 : 0x108)) {
         // Gas pressed - only for ACC for now
-        if (has_ap_hardware) {
+        if (has_ap_hardware && !has_ap_disabled) {
           gas_pressed = ((GET_BYTE(to_push, 6) != 0) && (!enable_hao));
         }
       }
 
       if(addr == (tesla_powertrain ? 0x1f8 : 0x20a)) {
         // Brake pressed - only for ACC for now
-        if (has_ap_hardware) {
+        if (has_ap_hardware && !has_ap_disabled) {
           brake_pressed = ((GET_BYTE(to_push, 0) & 0x0C) >> 2 != 1);
         }
       }
@@ -939,7 +940,7 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
                               (cruise_state == 4) ||  // OVERRIDE
                               (cruise_state == 6) ||  // PRE_FAULT
                               (cruise_state == 7);    // PRE_CANCEL
-        if (has_ap_hardware) {
+        if (has_ap_hardware && !has_ap_disabled) {
           if(cruise_engaged && !cruise_engaged_prev && !(autopilot_enabled || eac_enabled || autopark_enabled) && !epas_inhibited) {
             time_cruise_engaged = microsecond_timer_get();
           }
@@ -1273,8 +1274,7 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
       if ((addr == 0x398) && (((GET_BYTE(to_fwd, 7) & 0x38)>>3) == 0)) {
         //we have autopilot but it's disabled, so enable it for just "highway" to get ACC going
         WORD_TO_BYTE_ARRAY(&to_fwd->data[4],(GET_BYTES_48(to_fwd) & 0xC7FFFFFF) | 0x08000000);
-        //also send back on CAN0 
-        //can_send(to_fwd, bus_num, true); //not working due to EPB freaking out
+        has_ap_disabled = true;
       }
 
       //do not forward IC integration stuff from 0 -> 2 because they should not even be there
