@@ -1273,8 +1273,8 @@ static int tesla_fwd_hook(int bus_num, CANPacket_t *to_fwd) {
       if ((addr == 0x398) && (((GET_BYTE(to_fwd, 7) & 0x38)>>3) == 0)) {
         //we have autopilot but it's disabled, so enable it for just "highway" to get ACC going
         WORD_TO_BYTE_ARRAY(&to_fwd->data[4],(GET_BYTES_48(to_fwd) & 0xC7FFFFFF) | 0x08000000);
-        //also send back on CAN0
-        can_send(to_fwd, bus_num, true);
+        //also send back on CAN0 
+        //can_send(to_fwd, bus_num, true); //not working due to EPB freaking out
       }
 
       //do not forward IC integration stuff from 0 -> 2 because they should not even be there
