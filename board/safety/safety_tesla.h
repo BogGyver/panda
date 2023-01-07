@@ -1032,6 +1032,7 @@ static int tesla_tx_hook(CANPacket_t *to_send) {
 
   if (addr == 0x659) {
     pedalEnabled = ((GET_BYTE(to_send, 5) >> 5) & 0x01);
+    has_ap_disabled = ((GET_BYTE(to_send, 5) >> 7) & 0x01);
   }
 
   //do not allow long control if not enabled
