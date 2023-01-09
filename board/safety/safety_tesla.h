@@ -1038,6 +1038,7 @@ static int tesla_tx_hook(CANPacket_t *to_send) {
   if (addr == 0x659) {
     pedalEnabled = ((GET_BYTE(to_send, 5) >> 5) & 0x01);
     has_ap_disabled = ((GET_BYTE(to_send, 5) >> 7) & 0x01);
+    tx = 0;
   }
 
   //do not allow long control if not enabled
@@ -1120,7 +1121,7 @@ static int tesla_tx_hook(CANPacket_t *to_send) {
     if (tesla_longitudinal) {
       // No AEB events may be sent by openpilot
       int aeb_event = GET_BYTE(to_send, 2) & 0x03U;
-      if (aeb_event != 0) {
+      if ((aeb_event != 0) && (!has_ap_disabled)) {
         violation = true;
       }
 
