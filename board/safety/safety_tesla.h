@@ -730,6 +730,10 @@ static void do_fake_stalk_cancel(void) {
   MHB = MHB + (crc << 24);
   DAS_lastStalkH = MHB;
   send_fake_message(8,0x45,0,MLB,MHB);
+  //if we have AP hardware and it is disabled send also on CAN2
+  if (has_ap_hardware && has_ap_disabled) {
+    send_fake_message(8,0x45,2,MLB,MHB);
+  }
 }
 
 static void teslaPreAp_send_IC_messages(void) {
@@ -877,7 +881,7 @@ static int tesla_rx_hook(CANPacket_t *to_push) {
               controls_allowed = 0;
             }
             //if using pedal, send a cancel immediately to cancel the CC
-            if ((pedalCan != -1) && (pedalEnabled == 1) && (ap_lever_position > 1)) {
+            if ((pedalEnabled == 1) && (ap_lever_position > 1)) {
               do_fake_stalk_cancel();
             }
           }
