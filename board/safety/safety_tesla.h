@@ -111,6 +111,7 @@ const CanMsg TESLA_AP_TX_MSGS[] = {
     {0x369, 0, 8},  // DAS_warningMatrix1
     {0x349, 0, 8},  // DAS_warningMatrix3
     {0x398, 0, 8},  // GTW_carConfig
+    {0x659, 0, 8},  // FAKE PANDA MESSAGE
   };
 #define TESLA_AP_TX_LEN (sizeof(TESLA_AP_TX_MSGS) / sizeof(TESLA_AP_TX_MSGS[0]))
 
